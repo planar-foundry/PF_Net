@@ -15,7 +15,7 @@ namespace pf::net::detail::protocol
 
 static constexpr char ProtocolVersion[10] =
 {
-    'P', 'u', 'p', 'N', 'e', 't', 
+    'P', 'F', '_', 'N', 'e', 't', 
     'v',
     '0' + PFNET_PROTOCOL_VERSION_MAJOR, '.' , '0' + PFNET_PROTOCOL_VERSION_MINOR
 };
