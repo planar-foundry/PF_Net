@@ -28,7 +28,7 @@ PFNET_TEST_CREATE(Protocol_Fuzz)
 
     std::byte buff[1500];
 
-    for (int i = 0; i < 2000000; ++i)
+    for (int i = 0; i < 100000; ++i)
     {
         int random_bytes_written = write_random_data(buff, sizeof(buff));
 
