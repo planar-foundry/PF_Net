@@ -5,12 +5,12 @@
 namespace pf::net
 {
 
-Host::Host(HostCallbacks cbs, HostExtendedOptions options)
-    : Host(cbs, 0, options)
+Host::Host(const HostCallbacks& cbs, HostExtendedOptions options)
+    : Host(cbs, 0, std::move(options))
 { }
 
-Host::Host(HostCallbacks cbs, uint16_t port, HostExtendedOptions options)
-    : m_impl(detail::make_unique<detail::Host_impl>(cbs, port, options))
+Host::Host(const HostCallbacks& cbs, uint16_t port, HostExtendedOptions options)
+    : m_impl(detail::make_unique<detail::Host_impl>(cbs, port, std::move(options)))
 { }
 
 Host::~Host()

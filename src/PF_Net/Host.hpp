@@ -73,10 +73,10 @@ class Host
 
 public:
     // Client constructors; may not receive incoming connections.
-    PFNET_API Host(HostCallbacks cbs, HostExtendedOptions options = HostExtendedOptions());
+    PFNET_API Host(const HostCallbacks& cbs, HostExtendedOptions options = HostExtendedOptions());
 
     // Server constructors; may accept incoming connections on given port.
-    PFNET_API Host(HostCallbacks cbs, uint16_t port, HostExtendedOptions options = HostExtendedOptions());
+    PFNET_API Host(const HostCallbacks& cbs, uint16_t port, HostExtendedOptions options = HostExtendedOptions());
 
     PFNET_API Host(Host&& rhs) = default;
     PFNET_API Host(const Host&) = delete;

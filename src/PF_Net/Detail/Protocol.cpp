@@ -134,7 +134,7 @@ void serialize(NetworkByteStream* stream, Body_L2RC_Begin* body)
 
 void serialize(NetworkByteStream* stream, Body_R2LC_Response* body)
 {
-    stream->do_u8(&body->accepted);
+    stream->do_u8(&body->rejected);
     stream->do_bytes(sizeof(body->pubkey), body->pubkey);
 }
 

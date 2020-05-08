@@ -27,7 +27,7 @@ bool proto_cmp(const Body_R2LC_Response* lhs, const Body_R2LC_Response* rhs)
 {
     static_assert(Body_R2LC_Response::MinSize == 33);
     return
-        lhs->accepted == rhs->accepted &&
+        lhs->rejected == rhs->rejected &&
         memcmp(lhs->pubkey, rhs->pubkey, sizeof(Body_L2RC_Begin::pubkey)) == 0;
 }
 

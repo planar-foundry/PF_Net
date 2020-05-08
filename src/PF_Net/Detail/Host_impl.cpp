@@ -3,7 +3,6 @@
 #include <PF_Net/Detail/Instrumentation.hpp>
 #include <PF_Net/Detail/Log.hpp>
 
-#include <atomic>
 #include <string.h>
 
 namespace pf::net::detail
@@ -25,7 +24,23 @@ static constexpr uint64_t ConnUidBits    = 44ull;
 static constexpr uint64_t ConnUidShift   = ConnIndexBits;
 static constexpr uint64_t ConnUidMask    = ((1ull << ConnUidBits) - 1ull) << ConnUidShift;
 
-Host_impl::Host_impl(HostCallbacks cbs, uint16_t port, HostExtendedOptions options)
+template <typename T, typename ... Args>
+void dispatch_callback(T cb, Args&& ... args)
+{
+    if (cb)
+    {
+        cb(std::forward<Args>(args)...);
+    }
+}
+
+protocol::Command make_command(protocol::CommandType command)
+{
+    protocol::Command ret;
+    ret.command = command;
+    return ret;
+}
+
+Host_impl::Host_impl(const HostCallbacks& cbs, uint16_t port, const HostExtendedOptions& options)
     : m_cbs(cbs),
       m_options(options),
       m_pending_in_list(options.in_buffer_max_size_in_bytes / protocol::MaxPacketSize)
@@ -157,13 +172,38 @@ ConnectionId Host_impl::id_from_address_lockless(const Address& address)
 shared_ptr<HostConnectionInfo> Host_impl::connection_info_from_id(ConnectionId id)
 {
     std::lock_guard<std::mutex> lock(m_connections_lock);
+    return connection_info_from_id_lockless(id);
+}
+
+shared_ptr<HostConnectionInfo> Host_impl::connection_info_from_id_lockless(ConnectionId id)
+{
     return m_connections[id & ConnIndexMask];
+}
+
+shared_ptr<HostConnectionInfo> Host_impl::connection_info_from_address(const Address& address)
+{
+    std::lock_guard<std::mutex> lock(m_connections_lock);
+
+    ConnectionId id = id_from_address_lockless(address);
+    if (id == InvalidConnectionId)             
+    {
+        return nullptr;
+    }
+
+    shared_ptr<HostConnectionInfo> info = connection_info_from_id_lockless(id);
+    PFNET_ASSERT(info);
+
+    return info;
 }
 
 ConnectionId Host_impl::open_new_connection(const Address& address)
 {
     std::lock_guard<std::mutex> lock(m_connections_lock);
+    return open_new_connection_lockless(address);
+}
 
+ConnectionId Host_impl::open_new_connection_lockless(const Address& address)
+{
     if (id_from_address_lockless(address) != InvalidConnectionId)
     {
         return InvalidConnectionId;
@@ -208,6 +248,7 @@ void Host_impl::close_connection(ConnectionId conn)
     {
         auto iter = m_connections_lookup.find(connection->address);
         PFNET_ASSERT(iter != std::end(m_connections_lookup));
+        m_connections_lookup.erase(iter);
         m_free_conections.emplace_back(offset);
     }
     else
@@ -218,26 +259,42 @@ void Host_impl::close_connection(ConnectionId conn)
 
 void Host_impl::process_in_frame(unique_ptr<HostFrameBuffer>&& buffer)
 {
+    shared_ptr<HostConnectionInfo> info = connection_info_from_address(buffer->address);
+
     protocol::Command in;
-    if (protocol::read_from_buffer(buffer->frame, buffer->len, &in) != -1)
+    if (protocol::read_from_buffer(buffer->frame, buffer->len, info ? info->shared_incoming_key : nullptr, &in) != -1)
     {
-        switch (in.command)
+        if (info || in.command == protocol::CommandType::L2RC_Begin)
         {
-            case protocol::CommandType::L2RC_Begin:
-                incoming_l2rc_begin(in.data.begin, buffer->address);
-                break;
+            switch (in.command)
+            {
+                case protocol::CommandType::L2RC_Begin:
+                    incoming_l2rc_begin(in.data.begin, buffer->address);
+                    break;
 
-            case protocol::CommandType::R2LC_Response:
-                incoming_r2lc_response(in.data.response, buffer->address);
-                break;
+                case protocol::CommandType::R2LC_Response:
+                    incoming_r2lc_response(in.data.response, *info);
+                    break;
 
-            //case protocol::CommandType::L2RC_Complete: break;
-            //case protocol::CommandType::System_Disconnect: break;
-            //case protocol::CommandType::System_Ping: break;
-            //case protocol::CommandType::Payload_Send: break;
-            //case protocol::CommandType::Payload_SendReliableOrdered: break;
-            //case protocol::CommandType::Payload_SendFragmented: break;
-            default: PFNET_ASSERT_FAIL_MSG("Unhandled outgoing command %u.", in.command);
+                case protocol::CommandType::L2RC_Complete:
+                    incoming_l2rc_complete(in.data.complete, *info);
+                    break;
+
+                case protocol::CommandType::System_Disconnect:
+                    incoming_system_disconnect(in.data.disconnect, *info);
+                    break;
+
+                //case protocol::CommandType::System_Ping: break;
+                //case protocol::CommandType::Payload_Send: break;
+                //case protocol::CommandType::Payload_SendReliableOrdered: break;
+                //case protocol::CommandType::Payload_SendFragmented: break;
+                default: PFNET_ASSERT_FAIL_MSG("Unhandled outgoing command %u.", in.command);
+            }
+            
+        }
+        else
+        {
+            PFNET_LOG_WARN("Received command %d without a valid connection.", in.command);
         }
     }
 
@@ -256,15 +313,21 @@ void Host_impl::process_out_frame(HostPendingOut* out)
         switch (out->command.command)
         {
             case protocol::CommandType::L2RC_Begin:
-                bytes_written = outgoing_l2rc_begin(out->command, *info, buff, sizeof(buff));
+                bytes_written = outgoing_l2rc_begin(out->command.data.begin, *info, buff, sizeof(buff));
                 break;
 
             case protocol::CommandType::R2LC_Response:
-                bytes_written = outgoing_r2lc_response(out->command, *info, buff, sizeof(buff));
+                bytes_written = outgoing_r2lc_response(out->command.data.response, *info, buff, sizeof(buff));
                 break;
 
-            //case protocol::CommandType::L2RC_Complete: break;
-            //case protocol::CommandType::System_Disconnect: break;
+            case protocol::CommandType::L2RC_Complete:
+                bytes_written = outgoing_l2rc_complete(out->command.data.complete, *info, buff, sizeof(buff));
+                break;
+
+            case protocol::CommandType::System_Disconnect: 
+                bytes_written = outgoing_system_disconnect(out->command.data.disconnect, *info, buff, sizeof(buff));
+                break;
+
             //case protocol::CommandType::System_Ping: break;
             //case protocol::CommandType::Payload_Send: break;
             //case protocol::CommandType::Payload_SendReliableOrdered: break;
@@ -336,32 +399,36 @@ bool Host_impl::get_pending_out_frame(HostPendingOut* frame)
     return false;
 }
 
-protocol::Command Host_impl::make_command(protocol::CommandType command)
-{
-    protocol::Command ret;
-    ret.command = command;
-    return ret;
-}
+// handshake handlers
 
+// SERVER HANDSHAKE MESSAGE
+// outgoing_l2rc_begin (client sends connection attempt to server)
+// --> incoming_l2rc_begin (server receives connection attempt and processes it)
+//
+// * opens connection
+// * auth_recv_pubkey is now true on the server
+// * generates server keypair
+// * creates session key from client keypair 
 void Host_impl::incoming_l2rc_begin(const protocol::Body_L2RC_Begin& cmd, const Address& address)
 {
-    ConnectionId id = id_from_address(address);
-    if (id != InvalidConnectionId)             
+    shared_ptr<HostConnectionInfo> info;
+
     {
-        PFNET_LOG_WARN("Received L2RC_Begin when there was already an active connection.");
-        return;
+        std::lock_guard<std::mutex> lock(m_connections_lock);
+
+        ConnectionId id = open_new_connection_lockless(address);
+        if (id == InvalidConnectionId)             
+        {
+            return; // Received L2RC_Begin when there was already an active connection; ignoring.
+        }
+
+        info = connection_info_from_id_lockless(id);
+        PFNET_ASSERT(info);
     }
 
-    id = open_new_connection(address);
-    PFNET_ASSERT(id != InvalidConnectionId);
-
-    shared_ptr<HostConnectionInfo> info = connection_info_from_id(id);
-    PFNET_ASSERT(info);
-
-    if (memcmp(cmd.version, protocol::ProtocolVersion, sizeof(protocol::ProtocolVersion)) != 0)
+    if (memcmp(cmd.version, protocol::ProtocolVersion, sizeof(cmd.version)) != 0)
     {
-        PFNET_LOG_WARN("Received L2RC_Begin from mismatched protocol version %.*s.",
-            sizeof(protocol::ProtocolVersion), cmd.version);
+        PFNET_LOG_WARN("Received L2RC_Begin from mismatched protocol version %.*s; the connection will be rejected.", sizeof(cmd.version), cmd.version);
         info->rejected = true;
     }
     else
@@ -372,52 +439,147 @@ void Host_impl::incoming_l2rc_begin(const protocol::Body_L2RC_Begin& cmd, const 
         if (protocol::generate_session_keys_server(info->our_pubkey, info->our_privkey, info->their_pubkey,
             info->shared_incoming_key, info->shared_outgoing_key) != 0)
         {
-            PFNET_LOG_WARN("Received L2RC_Begin with suspicious public key.");
+            PFNET_LOG_WARN("Received L2RC_Begin with suspicious public key; the connection will be rejected.");
             info->rejected = true;
         }
     }
 
-    queue_pending_out_frame(id, make_command(protocol::CommandType::R2LC_Response));
+    queue_pending_out_frame(info->id, make_command(protocol::CommandType::R2LC_Response));
 }
 
-void Host_impl::incoming_r2lc_response(const protocol::Body_R2LC_Response& cmd, const Address& address)
+// CLIENT HANDSHAKE MESSAGE
+// outgoing_l2rc_begin (client sends connection attempt to server)
+// --> incoming_l2rc_begin (server receives connection attempt and processes it)
+// --> outgoing_r2lc_response (server sends response to client)
+// --> incoming_r2lc_response (client receives response from server)
+//
+// * auth_recv_pubkey is now true on the client
+// * creates session key from server keypair
+void Host_impl::incoming_r2lc_response(const protocol::Body_R2LC_Response& cmd, HostConnectionInfo& info)
 {
-    PFNET_ASSERT_FAIL_MSG("Unimplemented");
-}
-
-void Host_impl::incoming_l2rc_complete(const protocol::Body_L2RC_Complete& cmd, const Address& address)
-{
-    PFNET_ASSERT_FAIL_MSG("Unimplemented");
-}
-
-int Host_impl::outgoing_l2rc_begin(protocol::Command& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len)
-{
-    memcpy(cmd.data.begin.version, protocol::ProtocolVersion, sizeof(protocol::ProtocolVersion));
-    protocol::generate_keypair(info.our_pubkey, info.our_privkey);
-    memcpy(cmd.data.begin.pubkey, info.our_pubkey, sizeof(info.our_pubkey));
-    info.auth_sent_pubkey = true;
-    return protocol::write_to_buffer(buffer, buffer_len, &cmd.data.begin);
-}
-
-int Host_impl::outgoing_r2lc_response(protocol::Command& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len)
-{
-    cmd.data.response.accepted = !info.rejected;
-    if (cmd.data.response.accepted)
+    if (!info.auth_sent_pubkey)
     {
-        memcpy(cmd.data.response.pubkey, info.our_pubkey, sizeof(info.our_pubkey));
-        info.auth_sent_pubkey = true;
+        PFNET_LOG_WARN("Received R2LC_Response with out-of-order authentication; the connection will be closed.");
+        close_connection(info.id);
+        return;
     }
-    else
+
+    if (info.auth_recv_pubkey || info.auth_complete)
+    {
+        return; // Received R2LC_Response when we were already authenticated past this stage; ignoring.
+    }
+
+    if (cmd.rejected)
+    {
+        PFNET_LOG_WARN("Received R2LC_Response with rejection code %d; the connection will be closed.", cmd.rejected);
+        close_connection(info.id);
+        return;
+    }
+
+    memcpy(info.their_pubkey, cmd.pubkey, sizeof(info.their_pubkey));
+    info.auth_recv_pubkey = true;
+    if (protocol::generate_session_keys_client(info.our_pubkey, info.our_privkey, info.their_pubkey,
+        info.shared_incoming_key, info.shared_outgoing_key) != 0)
+    {
+        PFNET_LOG_WARN("Received R2LC_Response with suspicious public key; the connection will be closed.");
+        close_connection(info.id);
+        return;
+    }
+
+    queue_pending_out_frame(info.id, make_command(protocol::CommandType::L2RC_Complete));
+}
+
+// SERVER HANDSHAKE MESSAGE
+// outgoing_l2rc_begin (client sends connection attempt to server)
+// --> incoming_l2rc_begin (server receives connection attempt and processes it)
+// --> outgoing_r2lc_response (server sends response to client)
+// --> incoming_r2lc_response (client receives response from server)
+// --> outgoing_l2rc_complete (client sends response to server)
+// --> incoming_l2rc_complete (server receives response from client)
+//
+// * auth_complete is now true on the server
+void Host_impl::incoming_l2rc_complete(const protocol::Body_L2RC_Complete&, HostConnectionInfo& info)
+{
+    if (!info.auth_sent_pubkey || !info.auth_recv_pubkey)
+    {
+        PFNET_LOG_WARN("Received L2RC_Complete with out-of-order authentication; the connection will be closed.");
+        close_connection(info.id);
+        return;
+    }
+
+    if (info.auth_complete)
+    {
+        return; // Received R2LC_Response when we were already authenticated past this stage; ignoring.
+    }
+
+    info.auth_complete = true;
+    dispatch_callback(m_cbs.connected, info.id);
+}
+
+// CLIENT HANDSHAKE MESSAGE
+// outgoing_l2rc_begin (client sends connection attempt to server)
+//
+// * auth_sent_pubkey is now true on the client
+// * generates client keypair
+int Host_impl::outgoing_l2rc_begin(protocol::Body_L2RC_Begin& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len)
+{
+    memcpy(cmd.version, protocol::ProtocolVersion, sizeof(cmd.version));
+    protocol::generate_keypair(info.our_pubkey, info.our_privkey);
+    memcpy(cmd.pubkey, info.our_pubkey, sizeof(info.our_pubkey));
+    info.auth_sent_pubkey = true;
+    return protocol::write_to_buffer(buffer, buffer_len, &cmd);
+}
+
+// SERVER HANDSHAKE MESSAGE
+// outgoing_l2rc_begin (client sends connection attempt to server)
+// --> incoming_l2rc_begin (server receives connection attempt and processes it)
+// --> outgoing_r2lc_response (server sends response to client)
+//
+// * auth_sent_pubkey is now true on the server
+// * closes connection if attempt rejected
+int Host_impl::outgoing_r2lc_response(protocol::Body_R2LC_Response& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len)
+{
+    cmd.rejected = info.rejected;
+    if (cmd.rejected)
     {
         close_connection(info.id);
     }
-    return protocol::write_to_buffer(buffer, buffer_len, &cmd.data.response);
+    else
+    {
+        memcpy(cmd.pubkey, info.our_pubkey, sizeof(info.our_pubkey));
+        info.auth_sent_pubkey = true;
+    }
+    return protocol::write_to_buffer(buffer, buffer_len, &cmd);
 }
 
-int Host_impl::outgoing_l2rc_complete(protocol::Command& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len)
+// CLIENT HANDSHAKE MESSAGE
+// outgoing_l2rc_begin (client sends connection attempt to server)
+// --> incoming_l2rc_begin (server receives connection attempt and processes it)
+// --> outgoing_r2lc_response (server sends response to client)
+// --> incoming_r2lc_response (client receives response from server)
+// --> outgoing_l2rc_complete (client sends response to server)
+//
+// * auth_complete is now true on the client
+int Host_impl::outgoing_l2rc_complete(protocol::Body_L2RC_Complete& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len)
 {
-    PFNET_ASSERT_FAIL_MSG("Unimplemented");
-    return -1;
+    info.auth_complete = true;
+    dispatch_callback(m_cbs.connected, info.id);
+    return protocol::write_to_buffer(buffer, buffer_len, info.shared_outgoing_key, info.next_sequence_id++, &cmd);
+}
+
+// system handlers
+
+void Host_impl::incoming_system_disconnect(const protocol::Body_System_Disconnect&, HostConnectionInfo& info)
+{
+    dispatch_callback(m_cbs.disconnected, info.id);
+    close_connection(info.id);
+}
+
+int Host_impl::outgoing_system_disconnect(protocol::Body_System_Disconnect& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len)
+{
+    dispatch_callback(m_cbs.disconnected, info.id);
+    close_connection(info.id);
+    return protocol::write_to_buffer(buffer, buffer_len, info.shared_outgoing_key, info.next_sequence_id++, &cmd);
 }
 
 }

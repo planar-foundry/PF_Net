@@ -5,6 +5,7 @@
 #include <PF_Net/Detail/Protocol.hpp>
 #include <PF_Net/Detail/Socket.hpp>
 
+#include <atomic>
 #include <mutex>
 
 namespace pf::net::detail
@@ -32,7 +33,7 @@ struct HostConnectionInfo
     std::byte shared_outgoing_key[protocol::EncryptionKeySize];
 
     // for each packet we send, we additionally increment this counter and use it as a nonce.
-    uint64_t next_sequence_id = 0;
+    std::atomic<uint64_t> next_sequence_id = 0;
 };
 
 struct HostPendingOut
@@ -44,7 +45,7 @@ struct HostPendingOut
 class Host_impl
 {
 public:
-    PFNET_API Host_impl(HostCallbacks cbs, uint16_t port, HostExtendedOptions options);
+    PFNET_API Host_impl(const HostCallbacks& cbs, uint16_t port, const HostExtendedOptions& options);
     PFNET_API ~Host_impl();
 
     PFNET_API bool update_socket(int timeout_in_ms);
@@ -93,7 +94,10 @@ private:
     PFNET_API ConnectionId id_from_address(const Address& address);
     PFNET_API ConnectionId id_from_address_lockless(const Address& address);
     PFNET_API shared_ptr<HostConnectionInfo> connection_info_from_id(ConnectionId id);
+    PFNET_API shared_ptr<HostConnectionInfo> connection_info_from_id_lockless(ConnectionId id);
+    PFNET_API shared_ptr<HostConnectionInfo> connection_info_from_address(const Address& address);
     PFNET_API ConnectionId open_new_connection(const Address& address);
+    PFNET_API ConnectionId open_new_connection_lockless(const Address& address);
     PFNET_API void close_connection(ConnectionId conn);
 
     PFNET_API void process_in_frame(unique_ptr<HostFrameBuffer>&& buffer);
@@ -107,18 +111,20 @@ private:
     PFNET_API void queue_pending_out_frame(ConnectionId target, protocol::Command&& command);
     PFNET_API bool get_pending_out_frame(HostPendingOut* frame);
 
-    // just a quick wrapper to one-liner initialize a command
-    PFNET_API protocol::Command make_command(protocol::CommandType command);
+    // handshake handlers
 
-    // incoming command handlers
     PFNET_API void incoming_l2rc_begin(const protocol::Body_L2RC_Begin& cmd, const Address& address);
-    PFNET_API void incoming_r2lc_response(const protocol::Body_R2LC_Response& cmd, const Address& address);
-    PFNET_API void incoming_l2rc_complete(const protocol::Body_L2RC_Complete& cmd, const Address& address);
+    PFNET_API void incoming_r2lc_response(const protocol::Body_R2LC_Response& cmd, HostConnectionInfo& info);
+    PFNET_API void incoming_l2rc_complete(const protocol::Body_L2RC_Complete& cmd, HostConnectionInfo& info);
 
-    // outgoing command handlers
-    PFNET_API int outgoing_l2rc_begin(protocol::Command& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
-    PFNET_API int outgoing_r2lc_response(protocol::Command& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
-    PFNET_API int outgoing_l2rc_complete(protocol::Command& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
+    PFNET_API int outgoing_l2rc_begin(protocol::Body_L2RC_Begin& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
+    PFNET_API int outgoing_r2lc_response(protocol::Body_R2LC_Response& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
+    PFNET_API int outgoing_l2rc_complete(protocol::Body_L2RC_Complete& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
+
+    // system handlers
+
+    PFNET_API void incoming_system_disconnect(const protocol::Body_System_Disconnect& cmd, HostConnectionInfo& info);
+    PFNET_API int outgoing_system_disconnect(protocol::Body_System_Disconnect& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
 };
 
 }

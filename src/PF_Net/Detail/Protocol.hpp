@@ -96,11 +96,11 @@ struct Body_L2RC_Begin
 
 struct Body_R2LC_Response
 {
-    uint8_t accepted; // if 1, accepted, if 0, rejected
+    uint8_t rejected; // if 0, accepted, else, rejected reason
     std::byte pubkey[EncryptionKeySize]; // remote's public key
 
     static constexpr uint32_t MinSize =
-        sizeof(accepted) +
+        sizeof(rejected) +
         sizeof(pubkey);
 };
 
