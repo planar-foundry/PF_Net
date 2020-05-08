@@ -102,14 +102,14 @@ namespace std
 
                 for (int i = 0; i < 2; ++i)
                 {
-                    hash ^= (size_t)v6++ << 0;
-                    hash ^= (size_t)v6++ << 8;
-                    hash ^= (size_t)v6++ << 16;
-                    hash ^= (size_t)v6++ << 24;
-                    hash ^= (size_t)v6++ << 32;
-                    hash ^= (size_t)v6++ << 40;
-                    hash ^= (size_t)v6++ << 48;
-                    hash ^= (size_t)v6++ << 56;
+                    hash ^= (size_t)*v6++ << 0;
+                    hash ^= (size_t)*v6++ << 8;
+                    hash ^= (size_t)*v6++ << 16;
+                    hash ^= (size_t)*v6++ << 24;
+                    hash ^= (size_t)*v6++ << 32;
+                    hash ^= (size_t)*v6++ << 40;
+                    hash ^= (size_t)*v6++ << 48;
+                    hash ^= (size_t)*v6++ << 56;
                 }
             }
 
