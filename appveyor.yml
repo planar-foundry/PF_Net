@@ -1,0 +1,12 @@
+version: 1.0.{build}-{branch}
+image: Visual Studio 2019
+install:
+- ps: wget https://github.com/jedisct1/libsodium/releases/download/1.0.18-RELEASE/libsodium-1.0.18-msvc.zip -outfile C:\libsodium.zip
+- ps: Expand-Archive -LiteralPath C:\libsodium.zip -DestinationPath C:\
+build_script:
+- cmd: mkdir Scratch
+- cmd: cd Scratch
+- cmd: cmake -DBUILD_SHARED_LIBS=1 -Dsodium_DIR="C:/libsodium" -Dsodium_USE_STATIC_LIBS=0 ..
+- cmd: cmake --build .
+test_script:
+- cmd: bin\Debug\UnitTests.exe

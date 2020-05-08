@@ -1,0 +1,131 @@
+language: cpp
+
+matrix:
+  include:
+    # GCC 9 (debug, shared)
+    - compiler: gcc
+      env:
+         - COMPILER=g++-9
+         - BUILD_TYPE=Debug
+         - EXTRA_CMAKE_FLAGS="-DBUILD_SHARED_LIBS=ON"
+
+    # GCC 9 (debug, static)
+    - compiler: gcc
+      env:
+         - COMPILER=g++-9
+         - BUILD_TYPE=Debug
+    
+    # GCC 9 (debug, static, asan)
+    - compiler: gcc
+      env:
+         - COMPILER=g++-9
+         - BUILD_TYPE=Debug
+         - EXTRA_BUILD_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined,address -g -fuse-ld=gold"
+
+    # GCC 9 (debug, static, noassert)
+    - compiler: gcc
+      env:
+         - COMPILER=g++-9
+         - BUILD_TYPE=Debug
+         - EXTRA_CMAKE_FLAGS="-DPN_ENABLE_ASSERTS=OFF -DPN_ENABLE_LOG=OFF -DPN_ENABLE_DEBUG=OFF -DPN_ENABLE_INSTRUMENTATION=OFF"
+
+    # GCC 9 (release, shared)
+    - compiler: gcc
+      env:
+         - COMPILER=g++-9
+         - BUILD_TYPE=Release
+         - EXTRA_CMAKE_FLAGS="-DBUILD_SHARED_LIBS=ON"
+
+    # GCC 9 (release, static)
+    - compiler: gcc
+      env:
+         - COMPILER=g++-9
+         - BUILD_TYPE=Release
+
+    # GCC 9 (release, static, asan)
+    - compiler: gcc
+      env:
+          - COMPILER=g++-9
+          - BUILD_TYPE=Release
+          - EXTRA_BUILD_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined,address -g -fuse-ld=gold"
+
+    # GCC 9 (release, static, noassert)
+    - compiler: gcc
+      env:
+         - COMPILER=g++-9
+         - BUILD_TYPE=Release
+         - EXTRA_CMAKE_FLAGS="-DPN_ENABLE_ASSERTS=OFF -DPN_ENABLE_LOG=OFF -DPN_ENABLE_DEBUG=OFF -DPN_ENABLE_INSTRUMENTATION=OFF"
+
+    # Clang 10 (debug, shared)
+    - compiler: clang
+      env:
+         - COMPILER=clang++-10
+         - BUILD_TYPE=Debug
+         - EXTRA_CMAKE_FLAGS="-DBUILD_SHARED_LIBS=ON"
+
+    # Clang 10 (debug, static)
+    - compiler: clang
+      env:
+         - COMPILER=clang++-10
+         - BUILD_TYPE=Debug
+    
+    # Clang 10 (debug, static, asan)
+    - compiler: clang
+      env:
+         - COMPILER=clang++-10
+         - BUILD_TYPE=Debug
+         - EXTRA_BUILD_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined,address -g"
+
+    # Clang 10 (debug, static, noassert)
+    - compiler: clang
+      env:
+         - COMPILER=clang++-10
+         - BUILD_TYPE=Debug
+         - EXTRA_CMAKE_FLAGS="-DPN_ENABLE_ASSERTS=OFF -DPN_ENABLE_LOG=OFF -DPN_ENABLE_DEBUG=OFF -DPN_ENABLE_INSTRUMENTATION=OFF"
+
+    # Clang 10 (release, shared)
+    - compiler: clang
+      env:
+         - COMPILER=clang++-10
+         - BUILD_TYPE=Release
+         - EXTRA_CMAKE_FLAGS="-DBUILD_SHARED_LIBS=ON"
+
+    # Clang 10 (release, static)
+    - compiler: clang
+      env:
+         - COMPILER=clang++-10
+         - BUILD_TYPE=Release
+
+    # Clang 10 (release, static, asan)
+    - compiler: clang
+      env:
+          - COMPILER=clang++-10
+          - BUILD_TYPE=Release
+          - EXTRA_BUILD_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined,address -g"
+
+    # Clang 10 (release, static, noassert)
+    - compiler: clang
+      env:
+         - COMPILER=clang++-10
+         - BUILD_TYPE=Release
+         - EXTRA_CMAKE_FLAGS="-DPN_ENABLE_ASSERTS=OFF -DPN_ENABLE_LOG=OFF -DPN_ENABLE_DEBUG=OFF -DPN_ENABLE_INSTRUMENTATION=OFF"
+
+addons:
+  apt:
+    update: true
+    sources:
+    - sourceline: "ppa:ubuntu-toolchain-r/test"
+    - sourceline: "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-10 main"
+
+before_install:
+  - sudo apt-get install -y --allow-unauthenticated cmake g++-9 clang-10 libsodium-dev
+
+before_script:
+  - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
+
+script:
+  - mkdir Scratch
+  - cd Scratch
+  - cmake -DCMAKE_CXX_COMPILER=${COMPILER} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_CXX_FLAGS="${EXTRA_BUILD_FLAGS}" ${EXTRA_CMAKE_FLAGS} ..
+  - make
+  - ./bin/UnitTests
