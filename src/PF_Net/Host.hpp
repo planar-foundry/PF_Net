@@ -89,18 +89,12 @@ public:
     // If timeout_in_ms is set to 0, it will return immediately.
     // If timeout_in_ms is set to > 0, it will be clamped in the range [0..100].
     // Returns true if any work was completed.
-    // This function can be called safely at the same time as the other update_ functions, but this
-    // function must not be called concurrently (e.g. two threads calling this function at once).
     PFNET_API bool update_socket(int timeout_in_ms = 0);
 
     // Responsible for processing incoming network traffic.
-    // This function can be called safely at the same time as the other update_ functions, but this
-    // function must not be called concurrently (e.g. two threads calling this function at once).
     PFNET_API void update_incoming();
 
     // Responsible for processing outgoing network traffic.
-    // This function can be called safely at the same time as the other update_ functions, but this
-    // function must not be called concurrently (e.g. two threads calling this function at once).
     PFNET_API void update_outgoing();
 
     // Sends to the connection. This packet is UNRELIABLE. Transmission is not guaranteed.
