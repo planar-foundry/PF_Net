@@ -10,7 +10,7 @@ namespace pf::net::detail
     #define PFNET_ASSERT(condition) \
         do \
         { \
-            if (!(condition)) ::pf::net::get_assert_handler()((#condition), __FILE__, __LINE__, ""); \
+            if (!(condition)) ::pf::net::detail::format_assert((#condition), __FILE__, __LINE__, "%s", "(no message)"); \
         } while (0)
 
     #define PFNET_ASSERT_MSG(condition, format, ...) \
@@ -20,10 +20,10 @@ namespace pf::net::detail
         } while (0)
 
     #define PFNET_ASSERT_FAIL() \
-        ::pf::net::get_assert_handler()("", __FILE__, __LINE__, "")
+        ::pf::net::detail::format_assert("(no condition)", __FILE__, __LINE__, "%s", "(no message)")
 
     #define PFNET_ASSERT_FAIL_MSG(format, ...) \
-        ::pf::net::detail::format_assert("", __FILE__, __LINE__, (format), ##__VA_ARGS__)
+        ::pf::net::detail::format_assert("(no condition)", __FILE__, __LINE__, (format), ##__VA_ARGS__)
 
     template <typename ... Args>
     void format_assert(const char* condition, const char* file, int line, const char* format, Args ... args)
