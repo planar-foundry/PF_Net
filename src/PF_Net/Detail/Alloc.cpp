@@ -8,7 +8,6 @@ PFNET_API CustomAllocators g_custom_allocators;
 void set_custom_allocators(CustomAllocators allocators)
 {
     if (!allocators.custom_alloc)   allocators.custom_alloc   = &malloc;
-    if (!allocators.custom_realloc) allocators.custom_realloc = &realloc;
     if (!allocators.custom_free)    allocators.custom_free    = &free;
 
     g_custom_allocators = allocators;

@@ -54,18 +54,6 @@ void* custom_alloc(size_t size)
     return (unsigned char*)data + 8;
 }
 
-void* custom_realloc(void* data, size_t size)
-{
-    size_t original_size;
-    void* data_start = (unsigned char*)data - 8;
-    memcpy(&original_size, data_start, 8);
-    void* data_new = ::realloc(data_start, size + 8);
-    memcpy(data_new, &size, 8);
-    s_bytes_allocated += (int64_t)size - original_size;
-    s_total_bytes_allocated += (int64_t)size - original_size;
-    return (unsigned char*)data + 8;
-}
-
 void custom_free(void* data)
 {
     if (data)
@@ -84,7 +72,6 @@ int main(int argc, char** argv)
 
     pf::net::CustomAllocators allocators;
     allocators.custom_alloc = &custom_alloc;
-    allocators.custom_realloc = &custom_realloc;
     allocators.custom_free = &custom_free;
 
     pf::net::net_init(allocators);

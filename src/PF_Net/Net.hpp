@@ -12,7 +12,6 @@ constexpr uint32_t PFNET_VERSION_MINOR = 1;
 struct CustomAllocators
 {
     void*(*custom_alloc)(size_t len) = nullptr;
-    void*(*custom_realloc)(void* ptr, size_t len) = nullptr;
     void(*custom_free)(void* ptr) = nullptr;
 };
 
