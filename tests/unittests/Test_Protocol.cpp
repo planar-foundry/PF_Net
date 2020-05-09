@@ -99,8 +99,8 @@ void do_rw_test_unencrypted(PFNET_TEST_THIS_ARG)
 
     switch (new_command.command)
     {
-        case CommandType::L2RC_Begin: command_data_ptr = &new_command.data.begin; break;
-        case CommandType::R2LC_Response: command_data_ptr = &new_command.data.response; break;
+        case CommandType::L2RC_Begin: command_data_ptr = &new_command.begin; break;
+        case CommandType::R2LC_Response: command_data_ptr = &new_command.response; break;
         default: PFNET_TEST_FAIL(); break;
     }
 
@@ -154,9 +154,9 @@ void do_rw_test_encrypted(PFNET_TEST_THIS_ARG)
 
     switch (new_command.command)
     {
-        case CommandType::L2RC_Complete: command_data_ptr = &new_command.data.complete; break;
-        case CommandType::System_Disconnect: command_data_ptr = &new_command.data.disconnect; break;
-        case CommandType::System_Ping: command_data_ptr = &new_command.data.ping; break;
+        case CommandType::L2RC_Complete: command_data_ptr = &new_command.complete; break;
+        case CommandType::System_Disconnect: command_data_ptr = &new_command.disconnect; break;
+        case CommandType::System_Ping: command_data_ptr = &new_command.ping; break;
         default: PFNET_TEST_FAIL(); break;
     }
 
@@ -213,28 +213,24 @@ void do_rw_test_payload(PFNET_TEST_THIS_ARG)
     PFNET_TEST_EXPECT(read_from_buffer(buff, len, TestKey, &new_command) == len);
     PFNET_TEST_EXPECT(new_command.command == TypeToCommandType<T>::type);
 
-    Body_Payload_Size ps;
     void* command_data_ptr = nullptr;
     std::byte* payload_ptr = nullptr;
 
     switch (new_command.command)
     {
         case CommandType::Payload_Send:
-            command_data_ptr = &new_command.data.send.body;
-            ps = new_command.data.send.body.ps;
-            payload_ptr = new_command.data.send.payload;
+            command_data_ptr = &new_command.send.body;
+            payload_ptr = new_command.send.payload;
             break;
 
         case CommandType::Payload_SendReliableOrdered:
-            command_data_ptr = &new_command.data.send_rel.body;
-            ps = new_command.data.send_rel.body.ps;
-            payload_ptr = new_command.data.send_rel.payload;
+            command_data_ptr = &new_command.send_rel.body;
+            payload_ptr = new_command.send_rel.payload;
             break;
 
         case CommandType::Payload_SendFragmented:
-            command_data_ptr = &new_command.data.send_frag.body;
-            ps = new_command.data.send_frag.body.ps;
-            payload_ptr = new_command.data.send_frag.payload;
+            command_data_ptr = &new_command.send_frag.body;
+            payload_ptr = new_command.send_frag.payload;
             break;
 
         default: PFNET_TEST_FAIL(); break;

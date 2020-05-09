@@ -7,14 +7,19 @@ namespace pf::net::detail
 
 HostFrameBuffer::HostFrameBuffer()
 {
-    len = protocol::MaxPacketSize;
+    reset();
     frame = (std::byte*)custom_alloc(len);
 }
 
 HostFrameBuffer::~HostFrameBuffer()
 {
     custom_free(frame);
-    frame = nullptr;
+}
+
+void HostFrameBuffer::reset()
+{
+    len = protocol::MaxPacketSize;
+    address = Address();
 }
 
 unique_ptr<HostFrameBuffer> HostFrameBufferFreeList::get()
@@ -53,6 +58,7 @@ unique_ptr<HostFrameBuffer> HostFrameBufferFreeList::get_or_make()
 void HostFrameBufferFreeList::submit(unique_ptr<HostFrameBuffer>&& buf)
 {
     std::lock_guard<std::mutex> lock(m_lock);
+    buf->reset();
     m_data.emplace_back(std::move(buf));
 }
 

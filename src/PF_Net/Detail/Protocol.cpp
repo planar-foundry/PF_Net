@@ -108,6 +108,9 @@ void Body_Payload_Size::set_size(uint16_t _size)
 
 void Body_Payload_Size::set_channel(uint8_t channel)
 {
+    PFNET_ASSERT_MSG(channel <= MaxPayloadChannel,
+        "Protocol: Channel %u was too high.", channel);
+
     size &= ~ChannelMask;
     size |= channel << ChannelShift;
 }
@@ -432,14 +435,14 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
 
     switch (command_type)
     {
-        case CommandType::L2RC_Begin:                  serialize(&stream, &out->data.begin); break;
-        case CommandType::R2LC_Response:               serialize(&stream, &out->data.response); break;
-        case CommandType::L2RC_Complete:               serialize(&stream, &out->data.complete); break;
-        case CommandType::System_Disconnect:           serialize(&stream, &out->data.disconnect); break;
-        case CommandType::System_Ping:                 serialize(&stream, &out->data.ping); break;
-        case CommandType::Payload_Send:                serialize(&stream, &out->data.send.body,      &out->data.send.payload); break;
-        case CommandType::Payload_SendReliableOrdered: serialize(&stream, &out->data.send_rel.body,  &out->data.send_rel.payload); break;
-        case CommandType::Payload_SendFragmented:      serialize(&stream, &out->data.send_frag.body, &out->data.send_frag.payload); break;
+        case CommandType::L2RC_Begin:                  serialize(&stream, &out->begin); break;
+        case CommandType::R2LC_Response:               serialize(&stream, &out->response); break;
+        case CommandType::L2RC_Complete:               serialize(&stream, &out->complete); break;
+        case CommandType::System_Disconnect:           serialize(&stream, &out->disconnect); break;
+        case CommandType::System_Ping:                 serialize(&stream, &out->ping); break;
+        case CommandType::Payload_Send:                serialize(&stream, &out->send.body,      &out->send.payload); break;
+        case CommandType::Payload_SendReliableOrdered: serialize(&stream, &out->send_rel.body,  &out->send_rel.payload); break;
+        case CommandType::Payload_SendFragmented:      serialize(&stream, &out->send_frag.body, &out->send_frag.payload); break;
         default: PFNET_LOG_WARN("Unrecognised command %u.", command_type); return -1;
     }
 

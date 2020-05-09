@@ -221,7 +221,8 @@ static constexpr uint32_t MinPacketSizeEncrypted =
         Body_Payload_SendFragmented::MinSize 
     }) + Header_Command::MinSize + Header_Encrypted::MinSize + EncryptionPadding;
 static constexpr uint32_t MinPacketSize = std::min({ MinPacketSizeUnencrypted, MinPacketSizeEncrypted });
-static constexpr uint32_t MaxPayloadSize = (~0u) & Body_Payload_Size::SizeMask;
+static constexpr uint32_t MaxPayloadSize = (~0u & Body_Payload_Size::SizeMask) >> Body_Payload_Size::SizeShift;
+static constexpr uint32_t MaxPayloadChannel = (~0u & Body_Payload_Size::ChannelMask) >> Body_Payload_Size::ChannelShift;
 static constexpr uint32_t MaxPacketSizeUnencrypted =
     std::max
     ({
@@ -282,7 +283,7 @@ struct Command
         struct { Body_Payload_Send body; std::byte* payload; } send;
         struct { Body_Payload_SendReliableOrdered body; std::byte* payload; } send_rel;
         struct { Body_Payload_SendFragmented body; std::byte* payload; } send_frag;     
-    } data;
+    };
 };
 
 static_assert(std::is_pod<Command>::value);

@@ -13,6 +13,10 @@ Host::Host(const HostCallbacks& cbs, uint16_t port, HostExtendedOptions options)
     : m_impl(detail::make_unique<detail::Host_impl>(cbs, port, std::move(options)))
 { }
 
+Host::Host(Host&& rhs)
+    : m_impl(std::move(rhs.m_impl))
+{ }
+
 Host::~Host()
 { }
 
@@ -29,6 +33,11 @@ void Host::update_incoming()
 void Host::update_outgoing()
 {
     m_impl->update_outgoing();
+}
+
+PacketId Host::send_unreliable(ConnectionId conn, std::byte* data, int len, uint8_t channel, PacketLifetime lifetime, void(*deleter)(void*))
+{
+    return m_impl->send_unreliable(conn, data, len, channel, lifetime, deleter);
 }
 
 ConnectionId Host::connect(const Address& remote_host)

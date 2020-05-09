@@ -12,6 +12,8 @@ struct HostFrameBuffer
     PFNET_API HostFrameBuffer();
     PFNET_API ~HostFrameBuffer();
 
+    PFNET_API void reset();
+
     Address address;
     uint16_t len;
     std::byte* frame;

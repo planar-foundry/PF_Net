@@ -41,7 +41,7 @@ struct HostCallbacks
     // For unreliable packets, this will be called right away.
     // For reliable packets, this will be called when the corresponding acknowledge has been received.
     // For fragments, this will be called when the entire fragment has been acknowledged.
-    void(*packet_sent)(ConnectionId conn, PacketId id, std::byte* data, int len) = nullptr;
+    void(*packet_sent)(ConnectionId conn, PacketId id, std::byte* data, int len, uint8_t channel) = nullptr;
 
     // Called when a packet has been received.
     // For unreliable and reliable packets, this will be called right away.
@@ -50,7 +50,7 @@ struct HostCallbacks
     // If the deleter is not nullptr, you MUST call the deleter on the data once you are done with it.
     // This distinction is an optimization - we can give you a read-only view of the data for small
     // packets, but for packets which have been fragmented, we must dynamically allocate space for it.
-    void(*packet_received)(ConnectionId conn, std::byte* data, int len, void(*deleter)(void*)) = nullptr;
+    void(*packet_received)(ConnectionId conn, std::byte* data, int len, uint8_t channel, void(*deleter)(void*)) = nullptr;
 };
 
 struct HostExtendedOptions
@@ -78,8 +78,8 @@ public:
     // Server constructors; may accept incoming connections on given port.
     PFNET_API Host(const HostCallbacks& cbs, uint16_t port, HostExtendedOptions options = HostExtendedOptions());
 
-    PFNET_API Host(Host&& rhs) = default;
     PFNET_API Host(const Host&) = delete;
+    PFNET_API Host(Host&& rhs);
     PFNET_API ~Host();
 
     // Receives incoming network traffic from the OS.
@@ -98,8 +98,11 @@ public:
     PFNET_API void update_outgoing();
 
     // Sends to the connection. This packet is UNRELIABLE. Transmission is not guaranteed.
-    // Unreliable packets may never be fragmented.
-    PFNET_API PacketId send_unreliable(ConnectionId conn, const std::byte* data, int len,
+    // Len must be <= 1023. (cannot be fragmented)
+    // Channel must be <= 63.
+    // Channel is unimportant for unreliable traffic, but may be useful to the user.
+    // If lifetime is CallerRelievesOwnership, deleter must be valid, else the deleter is ignored.
+    PFNET_API PacketId send_unreliable(ConnectionId conn, std::byte* data, int len, uint8_t channel = 0,
         PacketLifetime lifetime = PacketLifetime::AllocateCopy, void(*deleter)(void*) = nullptr);
 
     // Attempts to connect to the remote_host. Returns the POTENTIAL CONNECTION ID.

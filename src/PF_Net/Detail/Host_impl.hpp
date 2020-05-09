@@ -36,10 +36,18 @@ struct HostConnectionInfo
     std::atomic<uint64_t> next_sequence_id = 0;
 };
 
+struct HostPayloadInfo
+{
+    PacketLifetime lifetime;
+    void(*deleter)(void*);
+    PacketId id;
+};
+
 struct HostPendingOut
 {
     ConnectionId target;
     protocol::Command command;
+    HostPayloadInfo payload;
 };
 
 class Host_impl
@@ -51,7 +59,7 @@ public:
     PFNET_API bool update_socket(int timeout_in_ms);
     PFNET_API void update_incoming();
     PFNET_API void update_outgoing();
-    PFNET_API PacketId send_unreliable(ConnectionId conn, const std::byte* data, int len, PacketLifetime lifetime, void(*deleter)(void*));
+    PFNET_API PacketId send_unreliable(ConnectionId conn, std::byte* data, int len, uint8_t channel, PacketLifetime lifetime, void(*deleter)(void*));
     PFNET_API ConnectionId connect(const Address& remote_host);
     PFNET_API void disconnect(ConnectionId conn);
 
@@ -91,6 +99,9 @@ private:
     // A list of indices into m_connections of free connections. For every empty entry, there will be an index here.
     vector<ConnectionId> m_free_conections;
 
+    // The PacketIds just increment from 0 upwards, as a unique identifier for each payload message.
+    std::atomic<PacketId> m_next_packet_id;
+
     PFNET_API ConnectionId id_from_address(const Address& address);
     PFNET_API ConnectionId id_from_address_lockless(const Address& address);
     PFNET_API shared_ptr<HostConnectionInfo> connection_info_from_id(ConnectionId id);
@@ -109,7 +120,12 @@ private:
     PFNET_API unique_ptr<HostFrameBuffer> submit_pending_in_frame(unique_ptr<HostFrameBuffer>&& buffer);
 
     PFNET_API void queue_pending_out_frame(ConnectionId target, protocol::Command&& command);
+    PFNET_API void queue_pending_out_frame(ConnectionId target, protocol::Command&& command,
+        PacketLifetime lifetime, void(*deleter)(void*), PacketId id);
+
     PFNET_API bool get_pending_out_frame(HostPendingOut* frame);
+
+    PFNET_API PacketId get_next_packet_id();
 
     // handshake handlers
 
@@ -125,6 +141,12 @@ private:
 
     PFNET_API void incoming_system_disconnect(const protocol::Body_System_Disconnect& cmd, HostConnectionInfo& info);
     PFNET_API int outgoing_system_disconnect(protocol::Body_System_Disconnect& cmd, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
+
+    // payload handlers
+
+    PFNET_API void incoming_payload_send(const protocol::Body_Payload_Send& cmd, std::byte* payload, HostConnectionInfo& info);
+    PFNET_API int outgoing_payload_send(protocol::Body_Payload_Send& cmd, std::byte* payload,
+        HostPayloadInfo& payload_info, HostConnectionInfo& info, std::byte* buffer, int buffer_len);
 };
 
 }

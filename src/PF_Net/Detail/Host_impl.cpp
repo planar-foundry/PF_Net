@@ -43,7 +43,8 @@ protocol::Command make_command(protocol::CommandType command)
 Host_impl::Host_impl(const HostCallbacks& cbs, uint16_t port, const HostExtendedOptions& options)
     : m_cbs(cbs),
       m_options(options),
-      m_pending_in_list(options.in_buffer_max_size_in_bytes / protocol::MaxPacketSize)
+      m_pending_in_list(options.in_buffer_max_size_in_bytes / protocol::MaxPacketSize),
+      m_next_packet_id(0)
 {
     int sock_options = Socket::Options::NonBlocking;
 
@@ -54,15 +55,19 @@ Host_impl::Host_impl(const HostCallbacks& cbs, uint16_t port, const HostExtended
 
     m_socket = make_unique<Socket>(options.use_legacy_ipv4 ? Socket::Type::IPV4 : Socket::Type::IPV6, sock_options);
 
-    if (port != 0)
-    {
-        m_socket->listen(port);
-    }
+    // We listen even when we're not in server mode (e.g. with port 0).
+    // This is required so we get bound to a port before we send traffic, so we can run update_socket()
+    // without receiving an OS error.
+    m_socket->listen(port);
 
     if (!m_cbs.packet_received)
     {
         // This ensures that the data is correctly released even if the user hasn't set a callback.
-        m_cbs.packet_received = [](ConnectionId, std::byte* data, int, void(*deleter)(void*)) { if (deleter) deleter(data); };
+        m_cbs.packet_received = 
+            [](ConnectionId, std::byte* data, int, uint8_t, void(*deleter)(void*))
+        { 
+            if (deleter) deleter(data);
+        };
     }
 }
 
@@ -122,9 +127,61 @@ void Host_impl::update_outgoing()
     }
 }
 
-PacketId Host_impl::send_unreliable(ConnectionId conn, const std::byte* data, int len, PacketLifetime lifetime, void(*deleter)(void*))
+PacketId Host_impl::send_unreliable(ConnectionId conn, std::byte* data, int len, uint8_t channel, PacketLifetime lifetime, void(*deleter)(void*))
 {
-    return InvalidPacketId;
+    if (len > protocol::MaxPayloadSize)
+    {
+        PFNET_ASSERT_FAIL_MSG(
+            "Tried to send message of length %d. "
+            "Unreliable messages must not exceed the MTU %u; only reliable messages may be fragmented.",
+            len, protocol::MaxPayloadSize);
+
+        return InvalidPacketId;
+    }
+
+    if (channel > protocol::MaxPayloadChannel)
+    {
+        PFNET_ASSERT_FAIL_MSG("Tried to send message with channel %u. Max channel is %u.",
+            channel, protocol::MaxPayloadChannel);
+
+        return InvalidPacketId;
+    }
+    
+    PFNET_ASSERT(
+        (lifetime == PacketLifetime::AllocateCopy && !deleter) ||
+        (lifetime == PacketLifetime::CallerGuaranteesLifetime && !deleter) ||
+        (lifetime == PacketLifetime::CallerRelievesOwnership && deleter));
+
+    protocol::Command packet = make_command(protocol::CommandType::Payload_Send);
+
+    packet.send.body.ps.set_channel(channel);
+    packet.send.body.ps.set_size((uint16_t)len);
+
+    switch (lifetime)
+    {
+        case PacketLifetime::AllocateCopy:
+            packet.send.payload = (std::byte*)custom_alloc(len);
+            memcpy(packet.send.payload, data, len);
+            deleter = &custom_free;
+            break;
+
+        case PacketLifetime::CallerGuaranteesLifetime:
+            packet.send.payload = data;
+            deleter = nullptr;
+            break;
+
+        case PacketLifetime::CallerRelievesOwnership:
+            packet.send.payload = data;
+            break;
+
+        default:
+            PFNET_ASSERT_FAIL_MSG("Unhandled PacketLifetime.");
+            return InvalidPacketId;
+    }
+
+    PacketId id = get_next_packet_id();
+    queue_pending_out_frame(conn, std::move(packet), lifetime, deleter, id);
+    return id;
 }
 
 ConnectionId Host_impl::connect(const Address& remote_host)
@@ -269,23 +326,27 @@ void Host_impl::process_in_frame(unique_ptr<HostFrameBuffer>&& buffer)
             switch (in.command)
             {
                 case protocol::CommandType::L2RC_Begin:
-                    incoming_l2rc_begin(in.data.begin, buffer->address);
+                    incoming_l2rc_begin(in.begin, buffer->address);
                     break;
 
                 case protocol::CommandType::R2LC_Response:
-                    incoming_r2lc_response(in.data.response, *info);
+                    incoming_r2lc_response(in.response, *info);
                     break;
 
                 case protocol::CommandType::L2RC_Complete:
-                    incoming_l2rc_complete(in.data.complete, *info);
+                    incoming_l2rc_complete(in.complete, *info);
                     break;
 
                 case protocol::CommandType::System_Disconnect:
-                    incoming_system_disconnect(in.data.disconnect, *info);
+                    incoming_system_disconnect(in.disconnect, *info);
                     break;
 
                 //case protocol::CommandType::System_Ping: break;
-                //case protocol::CommandType::Payload_Send: break;
+        
+                case protocol::CommandType::Payload_Send: 
+                    incoming_payload_send(in.send.body, in.send.payload, *info);
+                    break;
+
                 //case protocol::CommandType::Payload_SendReliableOrdered: break;
                 //case protocol::CommandType::Payload_SendFragmented: break;
                 default: PFNET_ASSERT_FAIL_MSG("Unhandled outgoing command %u.", in.command);
@@ -313,23 +374,27 @@ void Host_impl::process_out_frame(HostPendingOut* out)
         switch (out->command.command)
         {
             case protocol::CommandType::L2RC_Begin:
-                bytes_written = outgoing_l2rc_begin(out->command.data.begin, *info, buff, sizeof(buff));
+                bytes_written = outgoing_l2rc_begin(out->command.begin, *info, buff, sizeof(buff));
                 break;
 
             case protocol::CommandType::R2LC_Response:
-                bytes_written = outgoing_r2lc_response(out->command.data.response, *info, buff, sizeof(buff));
+                bytes_written = outgoing_r2lc_response(out->command.response, *info, buff, sizeof(buff));
                 break;
 
             case protocol::CommandType::L2RC_Complete:
-                bytes_written = outgoing_l2rc_complete(out->command.data.complete, *info, buff, sizeof(buff));
+                bytes_written = outgoing_l2rc_complete(out->command.complete, *info, buff, sizeof(buff));
                 break;
 
             case protocol::CommandType::System_Disconnect: 
-                bytes_written = outgoing_system_disconnect(out->command.data.disconnect, *info, buff, sizeof(buff));
+                bytes_written = outgoing_system_disconnect(out->command.disconnect, *info, buff, sizeof(buff));
                 break;
 
             //case protocol::CommandType::System_Ping: break;
-            //case protocol::CommandType::Payload_Send: break;
+
+            case protocol::CommandType::Payload_Send:
+                bytes_written = outgoing_payload_send(out->command.send.body, out->command.send.payload, out->payload, *info, buff, sizeof(buff));
+                break;
+
             //case protocol::CommandType::Payload_SendReliableOrdered: break;
             //case protocol::CommandType::Payload_SendFragmented: break;
             default: PFNET_ASSERT_FAIL_MSG("Unhandled incoming command %u.", out->command.command);
@@ -376,11 +441,20 @@ unique_ptr<HostFrameBuffer> Host_impl::submit_pending_in_frame(unique_ptr<HostFr
 
 void Host_impl::queue_pending_out_frame(ConnectionId target, protocol::Command&& command)
 {
+    queue_pending_out_frame(target, std::move(command), PacketLifetime::AllocateCopy, nullptr, InvalidPacketId);
+}
+
+void Host_impl::queue_pending_out_frame(ConnectionId target, protocol::Command&& command,
+    PacketLifetime lifetime, void(*deleter)(void*), PacketId id)
+{
     std::lock_guard<std::mutex> lock(m_pending_out_list_lock);
     
     HostPendingOut out;
     out.target = target;
     out.command = std::move(command);
+    out.payload.lifetime = lifetime;
+    out.payload.deleter = deleter;
+    out.payload.id = id;
 
     m_pending_out_list.push(std::move(out));
 }
@@ -397,6 +471,11 @@ bool Host_impl::get_pending_out_frame(HostPendingOut* frame)
     }
 
     return false;
+}
+
+PacketId Host_impl::get_next_packet_id()
+{
+    return m_next_packet_id++;
 }
 
 // handshake handlers
@@ -580,6 +659,31 @@ int Host_impl::outgoing_system_disconnect(protocol::Body_System_Disconnect& cmd,
     dispatch_callback(m_cbs.disconnected, info.id);
     close_connection(info.id);
     return protocol::write_to_buffer(buffer, buffer_len, info.shared_outgoing_key, info.next_sequence_id++, &cmd);
+}
+
+// payload handlers
+
+void Host_impl::incoming_payload_send(const protocol::Body_Payload_Send& cmd, std::byte* payload, HostConnectionInfo& info)
+{
+    dispatch_callback(m_cbs.packet_received, info.id, payload, cmd.ps.get_size(), cmd.ps.get_channel(), nullptr);
+}
+
+int Host_impl::outgoing_payload_send(protocol::Body_Payload_Send& cmd, std::byte* payload,
+    HostPayloadInfo& payload_info, HostConnectionInfo& info, std::byte* buffer, int buffer_len)
+{
+    int bytes = protocol::write_to_buffer(buffer, buffer_len, info.shared_outgoing_key, info.next_sequence_id++, &cmd, payload);
+    dispatch_callback(m_cbs.packet_sent, info.id, payload_info.id, payload, cmd.ps.get_size(), cmd.ps.get_channel());
+
+    if (payload_info.deleter)
+    {
+        PFNET_ASSERT(
+            payload_info.lifetime == PacketLifetime::AllocateCopy ||
+            payload_info.lifetime == PacketLifetime::CallerRelievesOwnership);
+
+        payload_info.deleter(payload);
+    }
+
+    return bytes;
 }
 
 }
