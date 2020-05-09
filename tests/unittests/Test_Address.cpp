@@ -26,7 +26,7 @@ PFNET_TEST_CREATE(Address_Equality)
     PFNET_TEST_EXPECT(ipv4_1_port_1 == ipv4on6_1_port_1);
     PFNET_TEST_EXPECT(ipv4_1_port_1 != ipv4on6_1_port_2);
     PFNET_TEST_EXPECT(ipv4_1_port_1 != ipv4on6_2_port_1);
-    PFNET_TEST_EXPECT(ipv4_1_port_1 != ipv4on6_1_port_2);
+    PFNET_TEST_EXPECT(ipv4_1_port_1 != ipv4on6_2_port_2);
 
     Address ipv6_1_port_1(AddressStrIPV6("::1"), 1);
     Address ipv6_1_port_2(AddressStrIPV6("::1"), 2);
