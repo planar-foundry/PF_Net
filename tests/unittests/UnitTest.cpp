@@ -66,9 +66,21 @@ void custom_free(void* data)
     }
 }
 
+void* operator new(size_t size)
+{
+    return custom_alloc(size);
+}
+
+void operator delete(void* data)
+{
+    custom_free(data);
+}
+
 int main(int argc, char** argv)
 {
     char* whitelist = argc == 2 ? argv[1] : nullptr;
+
+    size_t overall_bytes_before = s_bytes_allocated;
 
     pf::net::CustomAllocators allocators;
     allocators.custom_alloc = &custom_alloc;
@@ -152,9 +164,10 @@ int main(int argc, char** argv)
 
     pf::net::net_free();
 
-    if (s_bytes_allocated)
+    if (s_bytes_allocated != overall_bytes_before)
     {
-        printf("FAILED!\n    %zu bytes were still allocated at teardown.\n", s_bytes_allocated.load());
+        printf("FAILED!\n    %zu bytes were still allocated at teardown; expected %zu.\n", s_bytes_allocated.load(), overall_bytes_before);
+        fflush(stdout);
         any_failures = true;
     }
 
