@@ -9,4 +9,4 @@ build_script:
 - cmd: cmake -DBUILD_SHARED_LIBS=1 -Dsodium_DIR="C:/libsodium" -Dsodium_USE_STATIC_LIBS=0 ..
 - cmd: cmake --build .
 test_script:
-- cmd: bin\Debug\UnitTests.exe
+- cmd: bin\Debug\PF_Net_UnitTests.exe

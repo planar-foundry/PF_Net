@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.8)
 project(PF_Net VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 option(BUILD_SHARED_LIBS "Builds as a shared library")
 
@@ -25,5 +22,6 @@ find_package(Sodium REQUIRED)
 add_subdirectory(src)
 
 if (${PN_BUILD_TESTS})
+    add_subdirectory(ext/PF_Test)
     add_subdirectory(tests)
 endif()

@@ -128,4 +128,4 @@ script:
   - cd Scratch
   - cmake -DCMAKE_CXX_COMPILER=${COMPILER} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_CXX_FLAGS="${EXTRA_BUILD_FLAGS}" ${EXTRA_CMAKE_FLAGS} ..
   - make
-  - ./bin/UnitTests
+  - ./bin/PF_Net_UnitTests

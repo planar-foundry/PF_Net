@@ -1,103 +1,30 @@
 #include "UnitTest.hpp"
 #include <PF_Net/Net.hpp>
-
-#if defined(_WIN32)
-    #include <Windows.h>
-#endif
-
-#include <atomic>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <vector>
-
-std::vector<UnitTest>& get_tests()
-{
-    static std::vector<UnitTest> s_tests;
-    return s_tests;
-}
-
-void register_unit_test(const char* name, UnitTestFunc function)
-{
-    get_tests().push_back({ name, function });
-}
-
-void debug_break()
-{
-#if defined(WIN32)
-    if (IsDebuggerPresent())
-    {
-        __debugbreak();
-    }
-#endif
-}
 
 uint16_t get_unique_port()
 {
-    static uint16_t port = 42512; return port++;
+    static uint16_t s_port = 42512; return s_port++;
 }
 
-uint32_t get_test_timeout()
+void pf::test::unit_test_init(UnitTestResult** result)
 {
-    return 5000;
-}
-
-static std::atomic<int64_t> s_bytes_allocated = 0;
-static std::atomic<int64_t> s_total_bytes_allocated = 0;
-
-void* custom_alloc(size_t size)
-{
-    void* data = ::malloc(size + 8);
-    memcpy(data, &size, 8);
-    s_bytes_allocated += size;
-    s_total_bytes_allocated += size;
-    return (unsigned char*)data + 8;
-}
-
-void custom_free(void* data)
-{
-    if (data)
-    {
-        size_t size;
-        void* data_start = (unsigned char*)data - 8;
-        memcpy(&size, data_start, 8);
-        ::free(data_start);
-        s_bytes_allocated -= size;
-    }
-}
-
-void* operator new(size_t size)
-{
-    return custom_alloc(size);
-}
-
-void operator delete(void* data)
-{
-    custom_free(data);
-}
-
-int main(int argc, char** argv)
-{
-    char* whitelist = argc == 2 ? argv[1] : nullptr;
-
-    size_t overall_bytes_before = s_bytes_allocated;
-
     pf::net::CustomAllocators allocators;
     allocators.custom_alloc = &custom_alloc;
     allocators.custom_free = &custom_free;
 
     pf::net::net_init(allocators);
 
-    static UnitTestResult* current_test;
+    static UnitTestResult** s_current_test = result;
 
     pf::net::set_assert_handler(
         [](const char* cond, const char* file, int line, const char* msg)
     {
-        if (!current_test->ignore_asserts)
+        if (!(*s_current_test)->ignore_asserts)
         {
             printf(" Failed assert %s at %s:%d %s ", cond, file, line, msg);
             fflush(stdout);
-            current_test->failed_assert = true;
+            (*s_current_test)->failed_assert = true;
             debug_break();
         }
     });
@@ -105,75 +32,20 @@ int main(int argc, char** argv)
     pf::net::set_log_handler(
         [](pf::net::LogSeverity sev, const char* msg)
     {
-        if (!current_test->ignore_log)
+        if (!(*s_current_test)->ignore_log)
         {
             printf(" %d %s ", (int)sev, msg);
             fflush(stdout);
             if (sev == pf::net::LogSeverity::Error || sev == pf::net::LogSeverity::Warn)
             {
-                current_test->failed_log = true;
+                (*s_current_test)->failed_log = true;
                 debug_break();
             }
         }
     });
+}
 
-    bool any_failures = false;
-
-    for (const UnitTest& test : get_tests())
-    {
-        if (whitelist && !strstr(test.name, whitelist))
-        {
-            printf("Skipping test %s\n", test.name);
-            continue;
-        }
-
-        UnitTestResult result;
-        current_test = &result;
-
-        printf("Running test %s ...", test.name);
-        fflush(stdout);
-
-        size_t total_bytes_before = s_total_bytes_allocated;
-        size_t bytes_before = s_bytes_allocated;
-
-        test.function(&result);
-
-        if (result.failed_condition)
-        {
-            printf(" FAILED!\n    %s:%d\n    %s\n", result.failed_file, result.failed_line, result.failed_condition);
-            any_failures = true;
-        }
-        else if (current_test->failed_assert || current_test->failed_log)
-        {
-            printf(" FAILED!\n    Assert or log event in PF_Net.\n");
-            any_failures = true;
-        }
-        else if (bytes_before != s_bytes_allocated)
-        {
-            printf(" FAILED!\n    %zu bytes before test, %zu bytes after test. Memory leak?\n", bytes_before, s_bytes_allocated.load());
-            any_failures = true;
-        }
-        else
-        {
-            printf(" SUCCESS! (alloc: %zu)\n", s_total_bytes_allocated - total_bytes_before);
-        }
-
-        fflush(stdout);
-        current_test = nullptr;
-    }
-
+void pf::test::unit_test_free()
+{
     pf::net::net_free();
-
-    if (s_bytes_allocated != overall_bytes_before)
-    {
-        printf("FAILED!\n    %zu bytes were still allocated at teardown; expected %zu.\n", s_bytes_allocated.load(), overall_bytes_before);
-        fflush(stdout);
-        any_failures = true;
-    }
-
-    if (any_failures)
-    {
-        debug_break();
-        return 1;
-    }
 }

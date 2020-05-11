@@ -48,7 +48,7 @@ bool verify_send_and_response(char* send_buff, Socket::Buffer* buffers, Socket& 
     return true;
 }
 
-PFNET_TEST_CREATE(Socket_SendRecvSelect)
+PFTEST_CREATE(Socket_SendRecvSelect)
 {
     Socket server_v4(Socket::Type::IPV4);
     Socket server_v6(Socket::Type::IPV6, Socket::Options::DualStack);
@@ -59,20 +59,20 @@ PFNET_TEST_CREATE(Socket_SendRecvSelect)
     Address send_address_v4(AddressStrIPV4("127.0.0.1"), get_unique_port());
     Address send_address_v6(AddressStrIPV6("::1"), get_unique_port());
 
-    PFNET_TEST_EXPECT(server_v4.listen(send_address_v4.get_port()));
-    PFNET_TEST_EXPECT(server_v6.listen(send_address_v6.get_port()));
-    PFNET_TEST_EXPECT(client_v4.listen(0));
-    PFNET_TEST_EXPECT(client_v6.listen(0));
+    PFTEST_EXPECT(server_v4.listen(send_address_v4.get_port()));
+    PFTEST_EXPECT(server_v6.listen(send_address_v6.get_port()));
+    PFTEST_EXPECT(client_v4.listen(0));
+    PFTEST_EXPECT(client_v6.listen(0));
 
     bool ready_to_read_server_v4 = server_v4.select_read(-1);
     bool ready_to_read_server_v6 = server_v6.select_read(-1);
     bool ready_to_read_client_v4 = client_v4.select_read(-1);
     bool ready_to_read_client_v6 = client_v6.select_read(-1);
 
-    PFNET_TEST_EXPECT(!ready_to_read_server_v4);
-    PFNET_TEST_EXPECT(!ready_to_read_server_v6);
-    PFNET_TEST_EXPECT(!ready_to_read_client_v4);
-    PFNET_TEST_EXPECT(!ready_to_read_client_v6);
+    PFTEST_EXPECT(!ready_to_read_server_v4);
+    PFTEST_EXPECT(!ready_to_read_server_v6);
+    PFTEST_EXPECT(!ready_to_read_client_v4);
+    PFTEST_EXPECT(!ready_to_read_client_v6);
 
     char send_buff[500];
     sprintf(send_buff, "Hello network test!");
@@ -83,12 +83,12 @@ PFNET_TEST_CREATE(Socket_SendRecvSelect)
         Socket::Buffer(send_buff + 10, sizeof(send_buff) - 10)
     };
 
-    PFNET_TEST_EXPECT(verify_send_and_response(send_buff, buffers, client_v4, server_v4, send_address_v4));
-    PFNET_TEST_EXPECT(verify_send_and_response(send_buff, buffers, client_v6, server_v4, send_address_v4));
-    PFNET_TEST_EXPECT(verify_send_and_response(send_buff, buffers, client_v6, server_v6, send_address_v6));
+    PFTEST_EXPECT(verify_send_and_response(send_buff, buffers, client_v4, server_v4, send_address_v4));
+    PFTEST_EXPECT(verify_send_and_response(send_buff, buffers, client_v6, server_v4, send_address_v4));
+    PFTEST_EXPECT(verify_send_and_response(send_buff, buffers, client_v6, server_v6, send_address_v6));
 
     // expected to fail
-    PFNET_TEST_IGNORE_LOG(true);
-    PFNET_TEST_EXPECT(!verify_send_and_response(send_buff, buffers, client_v4, server_v6, send_address_v6));
-    PFNET_TEST_IGNORE_LOG(false);
+    PFTEST_IGNORE_LOG(true);
+    PFTEST_EXPECT(!verify_send_and_response(send_buff, buffers, client_v4, server_v6, send_address_v6));
+    PFTEST_IGNORE_LOG(false);
 }

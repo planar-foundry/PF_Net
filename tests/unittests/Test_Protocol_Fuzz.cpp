@@ -22,9 +22,9 @@ int write_random_data(std::byte* buff, int len)
     return bytes;
 }
 
-PFNET_TEST_CREATE(Protocol_Fuzz)
+PFTEST_CREATE(Protocol_Fuzz)
 {
-    PFNET_TEST_IGNORE_LOG(true);
+    PFTEST_IGNORE_LOG(true);
 
     std::byte buff[1500];
 

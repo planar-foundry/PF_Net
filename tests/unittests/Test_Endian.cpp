@@ -2,7 +2,7 @@
 #include <PF_Net/Endian.hpp>
 #include <stdint.h>
 
-PFNET_TEST_CREATE(Endian_Swap)
+PFTEST_CREATE(Endian_Swap)
 {
     uint16_t uval16 = 1;
     int16_t val16 = 1;
@@ -18,10 +18,10 @@ PFNET_TEST_CREATE(Endian_Swap)
     uint64_t uval64_swapped = PFNET_ENDIAN_SWAP_64(uval64);
     int64_t val64_swapped = PFNET_ENDIAN_SWAP_64(val64);
 
-    PFNET_TEST_EXPECT(PFNET_ENDIAN_SWAP_16(uval16_swapped) == uval16);
-    PFNET_TEST_EXPECT(PFNET_ENDIAN_SWAP_16(val16_swapped) == val16);
-    PFNET_TEST_EXPECT(PFNET_ENDIAN_SWAP_32(uval32_swapped) == uval32);
-    PFNET_TEST_EXPECT(PFNET_ENDIAN_SWAP_32(val32_swapped) == val32);
-    PFNET_TEST_EXPECT(PFNET_ENDIAN_SWAP_64(uval64_swapped) == uval64);
-    PFNET_TEST_EXPECT(PFNET_ENDIAN_SWAP_64(val64_swapped) == val64);
+    PFTEST_EXPECT(PFNET_ENDIAN_SWAP_16(uval16_swapped) == uval16);
+    PFTEST_EXPECT(PFNET_ENDIAN_SWAP_16(val16_swapped) == val16);
+    PFTEST_EXPECT(PFNET_ENDIAN_SWAP_32(uval32_swapped) == uval32);
+    PFTEST_EXPECT(PFNET_ENDIAN_SWAP_32(val32_swapped) == val32);
+    PFTEST_EXPECT(PFNET_ENDIAN_SWAP_64(uval64_swapped) == uval64);
+    PFTEST_EXPECT(PFNET_ENDIAN_SWAP_64(val64_swapped) == val64);
 }

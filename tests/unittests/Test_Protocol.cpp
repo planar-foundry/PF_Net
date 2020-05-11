@@ -83,17 +83,17 @@ bool proto_cmp(const Body_Payload_SendFragmented* lhs, const Body_Payload_SendFr
 }
 
 template <typename T>
-void do_rw_test_unencrypted(PFNET_TEST_THIS_ARG)
+void do_rw_test_unencrypted(PFTEST_THIS_ARG)
 {
     std::byte buff[MaxPacketSizeUnencrypted] = { std::byte(0xFF) };
 
     T original_command;
     int len = write_to_buffer(buff, sizeof(buff), &original_command);
-    PFNET_TEST_EXPECT(len >= Header_Command::MinSize + T::MinSize);
+    PFTEST_EXPECT(len >= Header_Command::MinSize + T::MinSize);
 
     Command new_command;
-    PFNET_TEST_EXPECT(read_from_buffer(buff, len, &new_command) == len);
-    PFNET_TEST_EXPECT(new_command.command == TypeToCommandType<T>::type);
+    PFTEST_EXPECT(read_from_buffer(buff, len, &new_command) == len);
+    PFTEST_EXPECT(new_command.command == TypeToCommandType<T>::type);
 
     void* command_data_ptr = nullptr;
 
@@ -101,45 +101,45 @@ void do_rw_test_unencrypted(PFNET_TEST_THIS_ARG)
     {
         case CommandType::L2RC_Begin: command_data_ptr = &new_command.begin; break;
         case CommandType::R2LC_Response: command_data_ptr = &new_command.response; break;
-        default: PFNET_TEST_FAIL(); break;
+        default: PFTEST_FAIL(); break;
     }
 
-    PFNET_TEST_EXPECT(proto_cmp(&original_command, (T*)command_data_ptr));
+    PFTEST_EXPECT(proto_cmp(&original_command, (T*)command_data_ptr));
 }
 
 template <typename T>
-void do_rw_test_overflow_unencrypted(PFNET_TEST_THIS_ARG)
+void do_rw_test_overflow_unencrypted(PFTEST_THIS_ARG)
 {
-    PFNET_TEST_IGNORE_LOG(true);
+    PFTEST_IGNORE_LOG(true);
         
     std::byte buff[1];
 
     T original_command;
-    PFNET_TEST_IGNORE_ASSERTS(true);
-    PFNET_TEST_EXPECT(write_to_buffer(buff, sizeof(buff), &original_command) == -1);
+    PFTEST_IGNORE_ASSERTS(true);
+    PFTEST_EXPECT(write_to_buffer(buff, sizeof(buff), &original_command) == -1);
 
     Command new_command;
-    PFNET_TEST_IGNORE_ASSERTS(false);
-    PFNET_TEST_EXPECT(read_from_buffer(buff, sizeof(buff), &new_command) == -1);
+    PFTEST_IGNORE_ASSERTS(false);
+    PFTEST_EXPECT(read_from_buffer(buff, sizeof(buff), &new_command) == -1);
 
-    PFNET_TEST_IGNORE_LOG(false);
+    PFTEST_IGNORE_LOG(false);
 }
 
 template <typename T>
-void do_test_suite_unencrypted(PFNET_TEST_THIS_ARG)
+void do_test_suite_unencrypted(PFTEST_THIS_ARG)
 {
-    do_rw_test_unencrypted<T>(PFNET_TEST_THIS);
-    do_rw_test_overflow_unencrypted<T>(PFNET_TEST_THIS);
+    do_rw_test_unencrypted<T>(PFTEST_THIS);
+    do_rw_test_overflow_unencrypted<T>(PFTEST_THIS);
 }
 
-PFNET_TEST_CREATE(Protocol_Unencrypted)
+PFTEST_CREATE(Protocol_Unencrypted)
 {
-    do_test_suite_unencrypted<Body_L2RC_Begin>(PFNET_TEST_THIS);
-    do_test_suite_unencrypted<Body_R2LC_Response>(PFNET_TEST_THIS);
+    do_test_suite_unencrypted<Body_L2RC_Begin>(PFTEST_THIS);
+    do_test_suite_unencrypted<Body_R2LC_Response>(PFTEST_THIS);
 }
 
 template <typename T>
-void do_rw_test_encrypted(PFNET_TEST_THIS_ARG)
+void do_rw_test_encrypted(PFTEST_THIS_ARG)
 {
     std::byte buff[MaxPacketSizeEncrypted] = { std::byte(0xFF) };
 
@@ -147,8 +147,8 @@ void do_rw_test_encrypted(PFNET_TEST_THIS_ARG)
     int len = write_to_buffer(buff, sizeof(buff), TestKey, TestNonce, &original_command);
 
     Command new_command;
-    PFNET_TEST_EXPECT(read_from_buffer(buff, len, TestKey, &new_command) == len);
-    PFNET_TEST_EXPECT(new_command.command == TypeToCommandType<T>::type);
+    PFTEST_EXPECT(read_from_buffer(buff, len, TestKey, &new_command) == len);
+    PFTEST_EXPECT(new_command.command == TypeToCommandType<T>::type);
 
     void* command_data_ptr = nullptr;
 
@@ -157,46 +157,46 @@ void do_rw_test_encrypted(PFNET_TEST_THIS_ARG)
         case CommandType::L2RC_Complete: command_data_ptr = &new_command.complete; break;
         case CommandType::System_Disconnect: command_data_ptr = &new_command.disconnect; break;
         case CommandType::System_Ping: command_data_ptr = &new_command.ping; break;
-        default: PFNET_TEST_FAIL(); break;
+        default: PFTEST_FAIL(); break;
     }
 
-    PFNET_TEST_EXPECT(proto_cmp(&original_command, (T*)command_data_ptr));
+    PFTEST_EXPECT(proto_cmp(&original_command, (T*)command_data_ptr));
 }
 
 template <typename T>
-void do_rw_test_overflow_encrypted(PFNET_TEST_THIS_ARG)
+void do_rw_test_overflow_encrypted(PFTEST_THIS_ARG)
 {
-    PFNET_TEST_IGNORE_LOG(true);
+    PFTEST_IGNORE_LOG(true);
         
     std::byte buff[1] = { std::byte(0xFF) };
 
     T original_command;
-    PFNET_TEST_IGNORE_ASSERTS(true);
-    PFNET_TEST_EXPECT(write_to_buffer(buff, sizeof(buff), TestKey, TestNonce, &original_command) == -1);
+    PFTEST_IGNORE_ASSERTS(true);
+    PFTEST_EXPECT(write_to_buffer(buff, sizeof(buff), TestKey, TestNonce, &original_command) == -1);
 
     Command new_command;
-    PFNET_TEST_IGNORE_ASSERTS(false);
-    PFNET_TEST_EXPECT(read_from_buffer(buff, sizeof(buff), TestKey, &new_command) == -1);
+    PFTEST_IGNORE_ASSERTS(false);
+    PFTEST_EXPECT(read_from_buffer(buff, sizeof(buff), TestKey, &new_command) == -1);
 
-    PFNET_TEST_IGNORE_LOG(false);
+    PFTEST_IGNORE_LOG(false);
 }
 
 template <typename T>
-void do_test_suite_encrypted(PFNET_TEST_THIS_ARG)
+void do_test_suite_encrypted(PFTEST_THIS_ARG)
 {
-    do_rw_test_encrypted<T>(PFNET_TEST_THIS);
-    do_rw_test_overflow_encrypted<T>(PFNET_TEST_THIS);
+    do_rw_test_encrypted<T>(PFTEST_THIS);
+    do_rw_test_overflow_encrypted<T>(PFTEST_THIS);
 }
 
-PFNET_TEST_CREATE(Protocol_Encrypted)
+PFTEST_CREATE(Protocol_Encrypted)
 {
-    do_test_suite_encrypted<Body_L2RC_Complete>(PFNET_TEST_THIS);
-    do_test_suite_encrypted<Body_System_Disconnect>(PFNET_TEST_THIS);
-    do_test_suite_encrypted<Body_System_Ping>(PFNET_TEST_THIS);
+    do_test_suite_encrypted<Body_L2RC_Complete>(PFTEST_THIS);
+    do_test_suite_encrypted<Body_System_Disconnect>(PFTEST_THIS);
+    do_test_suite_encrypted<Body_System_Ping>(PFTEST_THIS);
 }
 
 template <typename T>
-void do_rw_test_payload(PFNET_TEST_THIS_ARG)
+void do_rw_test_payload(PFTEST_THIS_ARG)
 {
     std::byte buff[MaxPacketSizeEncrypted] = { std::byte(0xFF) };
 
@@ -210,8 +210,8 @@ void do_rw_test_payload(PFNET_TEST_THIS_ARG)
     int len = write_to_buffer(buff, sizeof(buff), TestKey, TestNonce, &original_command, payload);
 
     Command new_command;
-    PFNET_TEST_EXPECT(read_from_buffer(buff, len, TestKey, &new_command) == len);
-    PFNET_TEST_EXPECT(new_command.command == TypeToCommandType<T>::type);
+    PFTEST_EXPECT(read_from_buffer(buff, len, TestKey, &new_command) == len);
+    PFTEST_EXPECT(new_command.command == TypeToCommandType<T>::type);
 
     void* command_data_ptr = nullptr;
     std::byte* payload_ptr = nullptr;
@@ -233,42 +233,42 @@ void do_rw_test_payload(PFNET_TEST_THIS_ARG)
             payload_ptr = new_command.send_frag.payload;
             break;
 
-        default: PFNET_TEST_FAIL(); break;
+        default: PFTEST_FAIL(); break;
     }
 
-    PFNET_TEST_EXPECT(proto_cmp(&original_command, (T*)command_data_ptr));
-    PFNET_TEST_EXPECT(memcmp(payload, payload_ptr, MaxPayloadSize) == 0);
+    PFTEST_EXPECT(proto_cmp(&original_command, (T*)command_data_ptr));
+    PFTEST_EXPECT(memcmp(payload, payload_ptr, MaxPayloadSize) == 0);
 }
 
 template <typename T>
-void do_rw_test_overflow_payload(PFNET_TEST_THIS_ARG)
+void do_rw_test_overflow_payload(PFTEST_THIS_ARG)
 {
-    PFNET_TEST_IGNORE_LOG(true);
+    PFTEST_IGNORE_LOG(true);
         
     std::byte buff[1] = { std::byte(0xFF) };
     std::byte payload[1] = { std::byte(0x6F) };
 
     T original_command;
-    PFNET_TEST_IGNORE_ASSERTS(true);
-    PFNET_TEST_EXPECT(write_to_buffer(buff, sizeof(buff), TestKey, TestNonce, &original_command, payload) == -1);
+    PFTEST_IGNORE_ASSERTS(true);
+    PFTEST_EXPECT(write_to_buffer(buff, sizeof(buff), TestKey, TestNonce, &original_command, payload) == -1);
 
     Command new_command;
-    PFNET_TEST_IGNORE_ASSERTS(false);
-    PFNET_TEST_EXPECT(read_from_buffer(buff, sizeof(buff), TestKey, &new_command) == -1);
+    PFTEST_IGNORE_ASSERTS(false);
+    PFTEST_EXPECT(read_from_buffer(buff, sizeof(buff), TestKey, &new_command) == -1);
 
-    PFNET_TEST_IGNORE_LOG(false);
+    PFTEST_IGNORE_LOG(false);
 }
 
 template <typename T>
-void do_test_suite_payload(PFNET_TEST_THIS_ARG)
+void do_test_suite_payload(PFTEST_THIS_ARG)
 {
-    do_rw_test_payload<T>(PFNET_TEST_THIS);
-    do_rw_test_overflow_payload<T>(PFNET_TEST_THIS);
+    do_rw_test_payload<T>(PFTEST_THIS);
+    do_rw_test_overflow_payload<T>(PFTEST_THIS);
 }
 
-PFNET_TEST_CREATE(Protocol_Payload)
+PFTEST_CREATE(Protocol_Payload)
 {
-    do_test_suite_payload<Body_Payload_Send>(PFNET_TEST_THIS);
-    do_test_suite_payload<Body_Payload_SendReliableOrdered>(PFNET_TEST_THIS);
-    do_test_suite_payload<Body_Payload_SendFragmented>(PFNET_TEST_THIS);
+    do_test_suite_payload<Body_Payload_Send>(PFTEST_THIS);
+    do_test_suite_payload<Body_Payload_SendReliableOrdered>(PFTEST_THIS);
+    do_test_suite_payload<Body_Payload_SendFragmented>(PFTEST_THIS);
 }

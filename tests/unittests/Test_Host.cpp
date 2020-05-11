@@ -32,7 +32,7 @@ std::pair<Host, Host> create_connected_pair(HostCallbacks client_cbs, HostCallba
     return std::make_pair(std::move(client), std::move(server));
 }
 
-PFNET_TEST_CREATE(Host_Connection)
+PFTEST_CREATE(Host_Connection)
 {
     static bool s_server_connected_to_client = false;
     static bool s_client_connected_to_server = false;
@@ -50,39 +50,39 @@ PFNET_TEST_CREATE(Host_Connection)
     Host server(server_cbs, server_port);
 
     ConnectionId id = client.connect(Address(AddressStrIPV6("::1"), server_port));
-    PFNET_TEST_EXPECT(id != InvalidConnectionId);
-    PFNET_TEST_EXPECT(!s_client_connected_to_server);
+    PFTEST_EXPECT(id != InvalidConnectionId);
+    PFTEST_EXPECT(!s_client_connected_to_server);
 
     client.update_outgoing();
-    PFNET_TEST_EXPECT(!s_client_connected_to_server);
+    PFTEST_EXPECT(!s_client_connected_to_server);
 
     server.update_socket();
     server.update_incoming();
     server.update_outgoing();
-    PFNET_TEST_EXPECT(!s_server_connected_to_client);
+    PFTEST_EXPECT(!s_server_connected_to_client);
 
     client.update_socket();
     client.update_incoming();
     client.update_outgoing();
-    PFNET_TEST_EXPECT(s_client_connected_to_server);
+    PFTEST_EXPECT(s_client_connected_to_server);
 
     server.update_socket();
     server.update_incoming();
-    PFNET_TEST_EXPECT(s_server_connected_to_client);
+    PFTEST_EXPECT(s_server_connected_to_client);
 
     client.disconnect(id);
-    PFNET_TEST_EXPECT(s_client_connected_to_server);
+    PFTEST_EXPECT(s_client_connected_to_server);
 
     client.update_outgoing();
-    PFNET_TEST_EXPECT(!s_client_connected_to_server);
+    PFTEST_EXPECT(!s_client_connected_to_server);
 
     server.update_socket();
     server.update_incoming();
-    PFNET_TEST_EXPECT(!s_server_connected_to_client);
-    PFNET_TEST_EXPECT(!s_client_connected_to_server);
+    PFTEST_EXPECT(!s_server_connected_to_client);
+    PFTEST_EXPECT(!s_client_connected_to_server);
 }
 
-PFNET_TEST_CREATE(Host_Send)
+PFTEST_CREATE(Host_Send)
 {
     static ConnectionId s_conn;
     static PacketId s_packet_id;
@@ -119,16 +119,16 @@ PFNET_TEST_CREATE(Host_Send)
         PacketId packet_id = client.send_unreliable(s_conn, (std::byte*)&i, sizeof(i), i);
 
         client.update_outgoing();
-        PFNET_TEST_EXPECT(s_packet_id == packet_id);
-        PFNET_TEST_EXPECT(s_data == i);
-        PFNET_TEST_EXPECT(s_len == sizeof(i));
-        PFNET_TEST_EXPECT(s_channel == i);
+        PFTEST_EXPECT(s_packet_id == packet_id);
+        PFTEST_EXPECT(s_data == i);
+        PFTEST_EXPECT(s_len == sizeof(i));
+        PFTEST_EXPECT(s_channel == i);
 
         server.update_incoming();
-        PFNET_TEST_EXPECT(s_data == i);
-        PFNET_TEST_EXPECT(s_len == sizeof(i));
-        PFNET_TEST_EXPECT(s_channel == i);
-        PFNET_TEST_EXPECT(!s_deleter);
+        PFTEST_EXPECT(s_data == i);
+        PFTEST_EXPECT(s_len == sizeof(i));
+        PFTEST_EXPECT(s_channel == i);
+        PFTEST_EXPECT(!s_deleter);
     }
 
     // test other allocation modes
@@ -143,5 +143,5 @@ PFNET_TEST_CREATE(Host_Send)
     client.update_outgoing();
     server.update_incoming();
 
-    PFNET_TEST_EXPECT(s_freed);
+    PFTEST_EXPECT(s_freed);
 }

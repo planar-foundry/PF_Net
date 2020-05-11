@@ -17,10 +17,13 @@ set(sources
 )
 
 add_library(PF_Net ${sources})
+
 target_include_directories(PF_Net PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(PF_Net PRIVATE ${sodium_LIBRARIES})
 target_include_directories(PF_Net PRIVATE ${sodium_INCLUDE_DIR})
+
+set_target_properties(PF_Net PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 add_custom_command(TARGET PF_Net POST_BUILD 
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
