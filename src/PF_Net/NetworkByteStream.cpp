@@ -1,8 +1,7 @@
 #include <PF_Net/NetworkByteStream.hpp>
+#include <PF_Endian/Endian.hpp>
 #include <PF_Net/Detail/Assert.hpp>
 #include <PF_Net/Detail/Log.hpp>
-#include <PF_Net/Endian.hpp>
-
 #include <string.h>
 
 namespace pf::net
@@ -63,11 +62,11 @@ bool NetworkByteStream::do_u16(uint16_t* address)
     {
         uint16_t ret;
         bool success = read_bytes(&ret, 2);
-        *address = PFNET_ENDIAN_SWAP_16(ret);
+        *address = PFENDIAN_SWAP_16(ret);
         return success;
     }
 
-    uint16_t ret = PFNET_ENDIAN_SWAP_16(*address);
+    uint16_t ret = PFENDIAN_SWAP_16(*address);
     return write_bytes(&ret, 2);
 }
 
@@ -77,11 +76,11 @@ bool NetworkByteStream::do_u32(uint32_t* address)
     {
         uint32_t ret;
         bool success = read_bytes(&ret, 4);
-        *address = PFNET_ENDIAN_SWAP_32(ret);
+        *address = PFENDIAN_SWAP_32(ret);
         return success;
     }
 
-    uint32_t ret = PFNET_ENDIAN_SWAP_32(*address);
+    uint32_t ret = PFENDIAN_SWAP_32(*address);
     return write_bytes(&ret, 4);
 }
 
@@ -91,11 +90,11 @@ bool NetworkByteStream::do_u64(uint64_t* address)
     {
         uint64_t ret;
         bool success = read_bytes(&ret, 8);
-        *address = PFNET_ENDIAN_SWAP_64(ret);
+        *address = PFENDIAN_SWAP_64(ret);
         return success;
     }
 
-    uint64_t ret = PFNET_ENDIAN_SWAP_64(*address);
+    uint64_t ret = PFENDIAN_SWAP_64(*address);
     return write_bytes(&ret, 8);
 }
 
@@ -113,11 +112,11 @@ bool NetworkByteStream::do_uvar(uint64_t* address, uint8_t size)
     {
         uint64_t ret = 0;
         bool success = read_bytes(((std::byte*)&ret) + offset, size);
-        *address = PFNET_ENDIAN_SWAP_64(ret);
+        *address = PFENDIAN_SWAP_64(ret);
         return success;
     }
 
-    uint64_t ret = PFNET_ENDIAN_SWAP_64(*address);
+    uint64_t ret = PFENDIAN_SWAP_64(*address);
     return write_bytes(((std::byte*)&ret) + offset, size);
 }
 

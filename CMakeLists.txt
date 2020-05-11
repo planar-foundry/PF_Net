@@ -5,23 +5,18 @@ set(CMAKE_CXX_STANDARD 17)
 
 option(BUILD_SHARED_LIBS "Builds as a shared library")
 
-# If you're reading this trying to figure out how to turn off
-# debug stuff for retail builds, do this:
-#   option(PN_ENABLE_ASSERTS "" OFF)
-#   add_subdirectory(External/PF_Net)
-
-option(PN_BUILD_TESTS "Builds all unit tests" ON)
-option(PN_ENABLE_ASSERTS "Enables asserts" ON)
-option(PN_ENABLE_LOG "Enables logging" ON)
-option(PN_ENABLE_DEBUG "Enables debug features" ON)
-option(PN_ENABLE_INSTRUMENTATION "Enables instrumentation" ON)
+option(PFNET_BUILD_TESTS "Builds all unit tests" OFF)
+option(PFNET_ENABLE_ASSERTS "Enables asserts" ON)
+option(PFNET_ENABLE_LOG "Enables logging" ON)
+option(PFNET_ENABLE_DEBUG "Enables debug features" OFF)
+option(PFNET_ENABLE_INSTRUMENTATION "Enables instrumentation" ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 find_package(Sodium REQUIRED)
 
+add_subdirectory(ext)
 add_subdirectory(src)
 
-if (${PN_BUILD_TESTS})
-    add_subdirectory(ext/PF_Test)
+if (${PFNET_BUILD_TESTS})
     add_subdirectory(tests)
 endif()

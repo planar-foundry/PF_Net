@@ -1,6 +1,5 @@
 set(sources
     PF_Net/Address.cpp PF_Net/Address.hpp
-    PF_Net/Endian.hpp
     PF_Net/Host.cpp PF_Net/Host.hpp
     PF_Net/Net.cpp PF_Net/Net.hpp
     PF_Net/NetworkByteStream.cpp PF_Net/NetworkByteStream.hpp
@@ -20,7 +19,7 @@ add_library(PF_Net ${sources})
 
 target_include_directories(PF_Net PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(PF_Net PRIVATE ${sodium_LIBRARIES})
+target_link_libraries(PF_Net PRIVATE ${sodium_LIBRARIES} PF_Endian)
 target_include_directories(PF_Net PRIVATE ${sodium_INCLUDE_DIR})
 
 set_target_properties(PF_Net PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -51,24 +50,18 @@ else()
     target_compile_definitions(PF_Net PUBLIC "PFNET_API=")
 endif()
 
-INCLUDE(TestBigEndian)
-TEST_BIG_ENDIAN(BIG_ENDIAN)
-if (${BIG_ENDIAN})
-    target_compile_definitions(PF_Net PUBLIC "PFNET_BIG_ENDIAN")
-endif()
-
-if (${PN_ENABLE_ASSERTS})
+if (${PFNET_ENABLE_ASSERTS})
     target_compile_definitions(PF_Net PRIVATE "PFNET_ASSERTS_ENABLED")
 endif()
 
-if (${PN_ENABLE_LOG})
+if (${PFNET_ENABLE_LOG})
     target_compile_definitions(PF_Net PRIVATE "PFNET_LOG_ENABLED")
 endif()
 
-if (${PN_ENABLE_INSTRUMENTATION})
+if (${PFNET_ENABLE_INSTRUMENTATION})
     target_compile_definitions(PF_Net PRIVATE "PFNET_INSTRUMENTATION_ENABLED")
 endif()
 
-if (${PN_ENABLE_DEBUG})
+if (${PFNET_ENABLE_DEBUG})
     target_compile_definitions(PF_Net PUBLIC "PFNET_DEBUG_ENABLED")
 endif()

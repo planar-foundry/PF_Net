@@ -1,3 +1,6 @@
 [submodule "ext/PF_Test"]
 	path = ext/PF_Test
 	url = https://github.com/planar-foundry/PF_Test.git
+[submodule "ext/PF_Endian"]
+	path = ext/PF_Endian
+	url = https://github.com/planar-foundry/PF_Endian.git

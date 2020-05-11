@@ -1,6 +1,5 @@
 add_executable(PF_Net_UnitTests
     unittests/Test_Address.cpp
-    unittests/Test_Endian.cpp
     unittests/Test_Host.cpp
     unittests/Test_HostFrameBuffer.cpp
     unittests/Test_NetworkByteStream.cpp
