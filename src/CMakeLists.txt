@@ -23,6 +23,7 @@ target_link_libraries(PF_Net PRIVATE ${sodium_LIBRARIES} PF_Endian)
 target_include_directories(PF_Net PRIVATE ${sodium_INCLUDE_DIR})
 
 set_target_properties(PF_Net PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set_target_properties(PF_Net PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 add_custom_command(TARGET PF_Net POST_BUILD 
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
