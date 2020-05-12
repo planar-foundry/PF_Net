@@ -22,6 +22,7 @@ matrix:
          - COMPILER=g++-9
          - BUILD_TYPE=Debug
          - EXTRA_BUILD_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined,address -g"
+         - EXTRA_CMAKE_FLAGS="-DPFTEST_MEMORY_LEAK=0"
 
     # GCC 9 (debug, static, noassert)
     - compiler: gcc
@@ -49,6 +50,7 @@ matrix:
           - COMPILER=g++-9
           - BUILD_TYPE=Release
           - EXTRA_BUILD_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined,address -g"
+          - EXTRA_CMAKE_FLAGS="-DPFTEST_MEMORY_LEAK=0"
 
     # GCC 9 (release, static, noassert)
     - compiler: gcc
@@ -76,6 +78,7 @@ matrix:
          - COMPILER=clang++-10
          - BUILD_TYPE=Debug
          - EXTRA_BUILD_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined,address -g"
+         - EXTRA_CMAKE_FLAGS="-DPFTEST_MEMORY_LEAK=0"
 
     # Clang 10 (debug, static, noassert)
     - compiler: clang
@@ -103,6 +106,7 @@ matrix:
           - COMPILER=clang++-10
           - BUILD_TYPE=Release
           - EXTRA_BUILD_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined,address -g"
+          - EXTRA_CMAKE_FLAGS="-DPFTEST_MEMORY_LEAK=0"
 
     # Clang 10 (release, static, noassert)
     - compiler: clang
