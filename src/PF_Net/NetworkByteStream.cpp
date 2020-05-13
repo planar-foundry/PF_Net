@@ -1,7 +1,9 @@
 #include <PF_Net/NetworkByteStream.hpp>
+
+#include <PF_Debug/Assert.hpp>
+#include <PF_Debug/Log.hpp>
 #include <PF_Endian/Endian.hpp>
-#include <PF_Net/Detail/Assert.hpp>
-#include <PF_Net/Detail/Log.hpp>
+
 #include <string.h>
 
 namespace pf::net
@@ -100,7 +102,7 @@ bool NetworkByteStream::do_u64(uint64_t* address)
 
 bool NetworkByteStream::do_uvar(uint64_t* address, uint8_t size)
 {
-    PFNET_ASSERT(size <= sizeof(*address));
+    PFDEBUG_ASSERT(size <= sizeof(*address));
 
 #if defined(PFNET_BYTE_ORDER_BIG_ENDIAN)
     uint8_t offset = sizeof(*address) - size;
@@ -166,7 +168,7 @@ bool NetworkByteStream::read_bytes(void* dst, int bytes)
     int new_head = m_head + bytes;
     if (new_head > m_len)
     {
-        PFNET_LOG_WARN("NetworkByteStream buffer overflow when reading.");
+        PFDEBUG_LOG_WARN("NetworkByteStream buffer overflow when reading.");
         valid = false;
         memset(dst, 0, bytes);
     }
@@ -184,12 +186,12 @@ bool NetworkByteStream::write_bytes(void* data, int bytes)
     int new_head = m_head + bytes;
     if (new_head > m_len)
     {
-        PFNET_ASSERT_FAIL_MSG("NetworkByteStream buffer overflow when writing.");
+        PFDEBUG_ASSERT_FAIL_MSG("NetworkByteStream buffer overflow when writing.");
         valid = false;
     }
     else
     {
-        PFNET_ASSERT(data);
+        PFDEBUG_ASSERT(data);
         memcpy(m_buff + m_head, data, bytes);
     }
     m_head = new_head;

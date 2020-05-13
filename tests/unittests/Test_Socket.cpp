@@ -75,7 +75,7 @@ PFTEST_CREATE(Socket_SendRecvSelect)
     PFTEST_EXPECT(!ready_to_read_client_v6);
 
     char send_buff[500];
-    sprintf(send_buff, "Hello network test!");
+    snprintf(send_buff, sizeof(send_buff), "Hello network test!");
 
     Socket::Buffer buffers[2] =
     {

@@ -1,7 +1,8 @@
 #include <PF_Net/Detail/Socket.hpp>
-#include <PF_Net/Detail/Assert.hpp>
 #include <PF_Net/Detail/Instrumentation.hpp>
-#include <PF_Net/Detail/Log.hpp>
+
+#include <PF_Debug/Assert.hpp>
+#include <PF_Debug/Log.hpp>
 
 #if defined(WIN32)
     #include <WS2tcpip.h>
@@ -52,7 +53,7 @@ Address address_from_sockaddr(const sockaddr_storage* storage)
     }
     else
     {
-        PFNET_ASSERT_FAIL_MSG("Unhandled ss_family type %d.", storage->ss_family);
+        PFDEBUG_ASSERT_FAIL_MSG("Unhandled ss_family type %d.", storage->ss_family);
     }
 
     return ret;
@@ -81,7 +82,7 @@ sockaddr_storage storage_from_address(const Address& address)
     }
     else
     {
-        PFNET_ASSERT_FAIL_MSG("Unhandled address type.");
+        PFDEBUG_ASSERT_FAIL_MSG("Unhandled address type.");
         memset(&storage, 0, sizeof(storage));
     }
 
@@ -111,7 +112,7 @@ sockaddr_storage storage_from_port_type(uint16_t port, Socket::Type type)
     }
     else
     {
-        PFNET_ASSERT_FAIL_MSG("Unhandled address type.");
+        PFDEBUG_ASSERT_FAIL_MSG("Unhandled address type.");
         memset(&storage, 0, sizeof(storage));
     }
    
@@ -139,7 +140,7 @@ Socket::Socket(Socket::Type type, int options)
 
     if (sock == PFNET_SOCK_ERROR)
     {
-        PFNET_LOG_ERROR("Failed to open socket with error %d.", get_last_error());
+        PFDEBUG_LOG_ERROR("Failed to open socket with error %d.", get_last_error());
         return;
     }
 
@@ -150,7 +151,7 @@ Socket::Socket(Socket::Type type, int options)
         char zero[4] = { 0, 0, 0, 0 };
         if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&zero, sizeof(zero)) == PFNET_SOCK_ERROR)
         {
-            PFNET_LOG_ERROR("Failed to setsockopt socket %d with error %d.", sock, get_last_error());
+            PFDEBUG_LOG_ERROR("Failed to setsockopt socket %d with error %d.", sock, get_last_error());
         }
     }
 
@@ -160,12 +161,12 @@ Socket::Socket(Socket::Type type, int options)
         u_long blocking_off = 1;
         if (ioctlsocket(sock, FIONBIO, &blocking_off) == PFNET_SOCK_ERROR)
         {
-            PFNET_LOG_ERROR("Failed to ioctlsocket socket %d with error %d.", sock, WSAGetLastError());
+            PFDEBUG_LOG_ERROR("Failed to ioctlsocket socket %d with error %d.", sock, WSAGetLastError());
         }
 #else
         if (fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) | O_NONBLOCK) == PFNET_SOCK_ERROR)
         {
-            PFNET_LOG_ERROR("Failed to fcntl socket %d with error %d.", sock, errno);
+            PFDEBUG_LOG_ERROR("Failed to fcntl socket %d with error %d.", sock, errno);
         }
 #endif
     }
@@ -182,7 +183,7 @@ Socket::~Socket()
 
     if (err == PFNET_SOCK_ERROR)
     {
-        PFNET_LOG_ERROR("Failed to close socket with error %d.", get_last_error());
+        PFDEBUG_LOG_ERROR("Failed to close socket with error %d.", get_last_error());
     }
 }
 
@@ -192,7 +193,7 @@ bool Socket::listen(uint16_t port)
 
     if (bind((PFNET_SOCK_TYPE)m_socket, (sockaddr*)&addr, sizeof(addr)) == PFNET_SOCK_ERROR)
     {
-        PFNET_LOG_ERROR("Failed to bind socket %d on port %d with error %d.", (PFNET_SOCK_TYPE)m_socket, port, get_last_error());
+        PFDEBUG_LOG_ERROR("Failed to bind socket %d on port %d with error %d.", (PFNET_SOCK_TYPE)m_socket, port, get_last_error());
         return false;
     }
 
@@ -207,7 +208,7 @@ int Socket::send_to(Buffer* buffers, int count, Address address)
     {
         if ((m_options & Options::DualStack) == 0)
         {
-            PFNET_ASSERT_FAIL_MSG("Attempted to send to an IPV4 address with an IPV6 socket"
+            PFDEBUG_ASSERT_FAIL_MSG("Attempted to send to an IPV4 address with an IPV6 socket"
                 " when dual stack mode was not turned on.");
             return 0;
         }
@@ -228,7 +229,7 @@ int Socket::send_to(Buffer* buffers, int count, Address address)
         int err = WSAGetLastError();
         if (err != WSAEWOULDBLOCK)
         {
-            PFNET_LOG_ERROR("Failed to WSASendTo on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, err);
+            PFDEBUG_LOG_ERROR("Failed to WSASendTo on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, err);
         }
         bytes = 0;
     }
@@ -249,7 +250,7 @@ int Socket::send_to(Buffer* buffers, int count, Address address)
         int err = errno;
         if (err != EWOULDBLOCK)
         {
-            PFNET_LOG_ERROR("Failed to sendmsg on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, err);
+            PFDEBUG_LOG_ERROR("Failed to sendmsg on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, err);
         }
         bytes = 0;
     }
@@ -277,7 +278,7 @@ int Socket::recv_from(void* buf, int len, Address* address_out)
         int err = WSAGetLastError();
         if (err != WSAEWOULDBLOCK)
         {
-            PFNET_LOG_ERROR("Failed to WSARecvFrom on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, err);
+            PFDEBUG_LOG_ERROR("Failed to WSARecvFrom on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, err);
         }
         bytes = 0;
     }
@@ -289,7 +290,7 @@ int Socket::recv_from(void* buf, int len, Address* address_out)
         int err = errno;
         if (err != EWOULDBLOCK)
         {
-            PFNET_LOG_ERROR("Failed to recvfrom on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, err);
+            PFDEBUG_LOG_ERROR("Failed to recvfrom on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, err);
         }
         bytes = 0;
     }
@@ -333,7 +334,7 @@ bool Socket::select_read(int timeout)
     int ret = select(nfds, &read_set, NULL, NULL, timeout == 0 ? nullptr : &tv);
     if (ret == PFNET_SOCK_ERROR)
     {
-        PFNET_LOG_ERROR("Failed to select on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, get_last_error());
+        PFDEBUG_LOG_ERROR("Failed to select on socket %d with error %d.", (PFNET_SOCK_TYPE)m_socket, get_last_error());
     }
 
     return ret > 0;
@@ -345,7 +346,7 @@ void socket_init()
     WSADATA data;
     if (WSAStartup(MAKEWORD(2, 2), &data))
     {
-        PFNET_LOG_ERROR("Failed the call to WSAStartup with error %d.", WSAGetLastError());
+        PFDEBUG_LOG_ERROR("Failed the call to WSAStartup with error %d.", WSAGetLastError());
     }
 #endif
 }
@@ -355,7 +356,7 @@ void socket_free()
 #if defined(WIN32)
     if (WSACleanup())
     {
-        PFNET_LOG_ERROR("Failed the call to WSACleanup with error %d.", WSAGetLastError());
+        PFDEBUG_LOG_ERROR("Failed the call to WSACleanup with error %d.", WSAGetLastError());
     }
 #endif
 }
@@ -379,7 +380,7 @@ bool address_parse(const char* address, Socket::Type type, AddressStorage* stora
 
     if (err != 1)
     {
-        PFNET_LOG_ERROR("Failed InetPton on address %s with error %d.", address, err);
+        PFDEBUG_LOG_ERROR("Failed InetPton on address %s with error %d.", address, err);
         return false;
     }
 
@@ -398,7 +399,7 @@ bool address_parse(const char* address, Socket::Type type, AddressStorage* stora
     }
     else
     {
-        PFNET_ASSERT_FAIL_MSG("Unhandled Socket::Type %d.", type);
+        PFDEBUG_ASSERT_FAIL_MSG("Unhandled Socket::Type %d.", type);
         return false;
     }
 
@@ -413,7 +414,7 @@ bool hostname_resolve(const char* hostname, Socket::Type type, AddressStorage* s
 
 bool address_to_string(const Address& address, char* buf, size_t buf_len)
 {
-    PFNET_ASSERT(address.is_valid());
+    PFDEBUG_ASSERT(address.is_valid());
 
 #if defined(WIN32)
     sockaddr_storage storage = storage_from_address(address);
@@ -423,30 +424,30 @@ bool address_to_string(const Address& address, char* buf, size_t buf_len)
     if (address.is_ipv4())
     {
         sockaddr_in* addr4 = (sockaddr_in*)&storage;
-        PFNET_ASSERT(buf_len >= 16);
+        PFDEBUG_ASSERT(buf_len >= 16);
         ret = InetNtop(AF_INET, &addr4->sin_addr, buf, buf_len);
     }
     else if (address.is_ipv6())
     {
         sockaddr_in6* addr6 = (sockaddr_in6*)&storage;
-        PFNET_ASSERT(buf_len >= 46);
+        PFDEBUG_ASSERT(buf_len >= 46);
         ret = InetNtop(AF_INET6, &addr6->sin6_addr, buf, buf_len);
     }
     else
     {
-        PFNET_ASSERT_FAIL_MSG("Unhandled address type.");
+        PFDEBUG_ASSERT_FAIL_MSG("Unhandled address type.");
         return false;
     }
 
     if (ret == NULL)
     {
-        PFNET_LOG_ERROR("Failed InetNtop with error %d.", WSAGetLastError());
+        PFDEBUG_LOG_ERROR("Failed InetNtop with error %d.", WSAGetLastError());
         return false;
     }
 
     return true;
 #else
-    PFNET_ASSERT_FAIL_MSG("address_to_string() not yet implemented on Linux.");
+    PFDEBUG_ASSERT_FAIL_MSG("address_to_string() not yet implemented on Linux.");
     return false;
 #endif
 }

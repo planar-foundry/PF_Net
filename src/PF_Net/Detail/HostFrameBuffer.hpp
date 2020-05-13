@@ -2,6 +2,7 @@
 
 #include <PF_Net/Address.hpp>
 #include <PF_Net/Detail/Alloc.hpp>
+#include <PF_Net/Detail/Export.hpp>
 #include <mutex>
 
 namespace pf::net::detail

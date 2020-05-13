@@ -1,6 +1,5 @@
 #include "UnitTest.hpp"
 #include <PF_Net/Detail/Protocol.hpp>
-#include <PF_Net/Detail/Util.hpp>
 #include <string.h>
 
 using namespace pf::net;

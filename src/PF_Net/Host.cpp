@@ -1,5 +1,4 @@
 #include <PF_Net/Host.hpp>
-#include <PF_Net/Detail/Assert.hpp>
 #include <PF_Net/Detail/Host_impl.hpp>
 
 namespace pf::net

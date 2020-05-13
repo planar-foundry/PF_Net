@@ -1,6 +1,7 @@
 #pragma once
 
 #include <PF_Net/Host.hpp>
+#include <PF_Net/Detail/Export.hpp>
 #include <PF_Net/Detail/HostFrameBuffer.hpp>
 #include <PF_Net/Detail/Protocol.hpp>
 #include <PF_Net/Detail/Socket.hpp>

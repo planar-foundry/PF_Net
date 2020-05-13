@@ -1,5 +1,7 @@
 #pragma once
 
+#include <PF_Net/Detail/Export.hpp>
+
 #include <functional>		
 #include <stdint.h>
 #include <variant>

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <PF_Net/Detail/Export.hpp>
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -20,22 +22,6 @@ PFNET_API void net_init(CustomAllocators allocators = CustomAllocators());
 
 // Should be called when PF_Net will no longer be used.
 PFNET_API void net_free();
-
-using AssertFunc = void(*)(const char* condition, const char* file, int line, const char* message);
-PFNET_API void set_assert_handler(AssertFunc handler);
-PFNET_API AssertFunc get_assert_handler();
-
-enum class LogSeverity
-{
-    Debug,
-    Info,
-    Warn,
-    Error
-};
-
-using LogFunc = void(*)(LogSeverity severity, const char* message);
-PFNET_API void set_log_handler(LogFunc handler);
-PFNET_API LogFunc get_log_handler();
 
 using InstrumentationFunc = void(*)(const char* name, uint32_t colour);
 PFNET_API void set_instrumentation_handler(InstrumentationFunc push_handler, InstrumentationFunc pop_handler);

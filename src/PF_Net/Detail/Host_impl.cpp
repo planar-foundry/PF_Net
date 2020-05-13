@@ -1,7 +1,8 @@
 #include <PF_Net/Detail/Host_impl.hpp>
-#include <PF_Net/Detail/Assert.hpp>
 #include <PF_Net/Detail/Instrumentation.hpp>
-#include <PF_Net/Detail/Log.hpp>
+
+#include <PF_Debug/Assert.hpp>
+#include <PF_Debug/Log.hpp>
 
 #include <string.h>
 
@@ -77,7 +78,7 @@ Host_impl::~Host_impl()
 bool Host_impl::update_socket(int timeout_in_ms)
 {
     PFNET_PERF_FUNC_SCOPE();
-    PFNET_ASSERT(timeout_in_ms >= 0);
+    PFDEBUG_ASSERT(timeout_in_ms >= 0);
 
     if (timeout_in_ms != 0 && !m_socket->select_read(std::min(timeout_in_ms, 100)))
     {
@@ -131,7 +132,7 @@ PacketId Host_impl::send_unreliable(ConnectionId conn, std::byte* data, int len,
 {
     if (len > protocol::MaxPayloadSize)
     {
-        PFNET_ASSERT_FAIL_MSG(
+        PFDEBUG_ASSERT_FAIL_MSG(
             "Tried to send message of length %d. "
             "Unreliable messages must not exceed the MTU %u; only reliable messages may be fragmented.",
             len, protocol::MaxPayloadSize);
@@ -141,13 +142,13 @@ PacketId Host_impl::send_unreliable(ConnectionId conn, std::byte* data, int len,
 
     if (channel > protocol::MaxPayloadChannel)
     {
-        PFNET_ASSERT_FAIL_MSG("Tried to send message with channel %u. Max channel is %u.",
+        PFDEBUG_ASSERT_FAIL_MSG("Tried to send message with channel %u. Max channel is %u.",
             channel, protocol::MaxPayloadChannel);
 
         return InvalidPacketId;
     }
     
-    PFNET_ASSERT(
+    PFDEBUG_ASSERT(
         (lifetime == PacketLifetime::AllocateCopy && !deleter) ||
         (lifetime == PacketLifetime::CallerGuaranteesLifetime && !deleter) ||
         (lifetime == PacketLifetime::CallerRelievesOwnership && deleter));
@@ -175,7 +176,7 @@ PacketId Host_impl::send_unreliable(ConnectionId conn, std::byte* data, int len,
             break;
 
         default:
-            PFNET_ASSERT_FAIL_MSG("Unhandled PacketLifetime.");
+            PFDEBUG_ASSERT_FAIL_MSG("Unhandled PacketLifetime.");
             return InvalidPacketId;
     }
 
@@ -186,12 +187,12 @@ PacketId Host_impl::send_unreliable(ConnectionId conn, std::byte* data, int len,
 
 ConnectionId Host_impl::connect(const Address& remote_host)
 {
-    PFNET_ASSERT(remote_host.is_valid());
+    PFDEBUG_ASSERT(remote_host.is_valid());
 
     if (ConnectionId existing_connection = id_from_address(remote_host);
         existing_connection != InvalidConnectionId)
     {
-        PFNET_ASSERT_FAIL_MSG("Tried to connect to a host we are already connected to!");
+        PFDEBUG_ASSERT_FAIL_MSG("Tried to connect to a host we are already connected to!");
         return InvalidConnectionId;
     }
 
@@ -248,7 +249,7 @@ shared_ptr<HostConnectionInfo> Host_impl::connection_info_from_address(const Add
     }
 
     shared_ptr<HostConnectionInfo> info = connection_info_from_id_lockless(id);
-    PFNET_ASSERT(info);
+    PFDEBUG_ASSERT(info);
 
     return info;
 }
@@ -283,7 +284,7 @@ ConnectionId Host_impl::open_new_connection_lockless(const Address& address)
     {
         size_t offset = m_free_conections.back();
         m_free_conections.pop_back();
-        PFNET_ASSERT(!m_connections[offset]);
+        PFDEBUG_ASSERT(!m_connections[offset]);
         new_id |= offset;
         info->id = new_id;
         m_connections[offset] = std::move(info);
@@ -304,13 +305,13 @@ void Host_impl::close_connection(ConnectionId conn)
     if (connection)
     {
         auto iter = m_connections_lookup.find(connection->address);
-        PFNET_ASSERT(iter != std::end(m_connections_lookup));
+        PFDEBUG_ASSERT(iter != std::end(m_connections_lookup));
         m_connections_lookup.erase(iter);
         m_free_conections.emplace_back(offset);
     }
     else
     {
-        PFNET_LOG_WARN("Received an attempt to close a connection %u that was not open.", conn);
+        PFDEBUG_LOG_WARN("Received an attempt to close a connection %u that was not open.", conn);
     }
 }
 
@@ -349,13 +350,13 @@ void Host_impl::process_in_frame(unique_ptr<HostFrameBuffer>&& buffer)
 
                 //case protocol::CommandType::Payload_SendReliableOrdered: break;
                 //case protocol::CommandType::Payload_SendFragmented: break;
-                default: PFNET_ASSERT_FAIL_MSG("Unhandled outgoing command %u.", in.command);
+                default: PFDEBUG_ASSERT_FAIL_MSG("Unhandled outgoing command %u.", in.command);
             }
             
         }
         else
         {
-            PFNET_LOG_WARN("Received command %d without a valid connection.", in.command);
+            PFDEBUG_LOG_WARN("Received command %d without a valid connection.", in.command);
         }
     }
 
@@ -397,7 +398,7 @@ void Host_impl::process_out_frame(HostPendingOut* out)
 
             //case protocol::CommandType::Payload_SendReliableOrdered: break;
             //case protocol::CommandType::Payload_SendFragmented: break;
-            default: PFNET_ASSERT_FAIL_MSG("Unhandled incoming command %u.", out->command.command);
+            default: PFDEBUG_ASSERT_FAIL_MSG("Unhandled incoming command %u.", out->command.command);
         }
 
         if (bytes_written != -1)
@@ -405,13 +406,13 @@ void Host_impl::process_out_frame(HostPendingOut* out)
             Socket::Buffer buffer(buff, bytes_written);
             if (m_socket->send_to(&buffer, 1, info->address) == 0)
             {
-                PFNET_LOG_ERROR("Failed to send packet due to OS failure.");
+                PFDEBUG_LOG_ERROR("Failed to send packet due to OS failure.");
             }
         }
     }
     else
     {
-        PFNET_LOG_WARN("Outgoing connection %u terminated while processing outgoing command.", out->target);
+        PFDEBUG_LOG_WARN("Outgoing connection %u terminated while processing outgoing command.", out->target);
     }
 }
 
@@ -502,12 +503,12 @@ void Host_impl::incoming_l2rc_begin(const protocol::Body_L2RC_Begin& cmd, const 
         }
 
         info = connection_info_from_id_lockless(id);
-        PFNET_ASSERT(info);
+        PFDEBUG_ASSERT(info);
     }
 
     if (memcmp(cmd.version, protocol::ProtocolVersion, sizeof(cmd.version)) != 0)
     {
-        PFNET_LOG_WARN("Received L2RC_Begin from mismatched protocol version %.*s; the connection will be rejected.", sizeof(cmd.version), cmd.version);
+        PFDEBUG_LOG_WARN("Received L2RC_Begin from mismatched protocol version %.*s; the connection will be rejected.", sizeof(cmd.version), cmd.version);
         info->rejected = true;
     }
     else
@@ -518,7 +519,7 @@ void Host_impl::incoming_l2rc_begin(const protocol::Body_L2RC_Begin& cmd, const 
         if (protocol::generate_session_keys_server(info->our_pubkey, info->our_privkey, info->their_pubkey,
             info->shared_incoming_key, info->shared_outgoing_key) != 0)
         {
-            PFNET_LOG_WARN("Received L2RC_Begin with suspicious public key; the connection will be rejected.");
+            PFDEBUG_LOG_WARN("Received L2RC_Begin with suspicious public key; the connection will be rejected.");
             info->rejected = true;
         }
     }
@@ -538,7 +539,7 @@ void Host_impl::incoming_r2lc_response(const protocol::Body_R2LC_Response& cmd, 
 {
     if (!info.auth_sent_pubkey)
     {
-        PFNET_LOG_WARN("Received R2LC_Response with out-of-order authentication; the connection will be closed.");
+        PFDEBUG_LOG_WARN("Received R2LC_Response with out-of-order authentication; the connection will be closed.");
         close_connection(info.id);
         return;
     }
@@ -550,7 +551,7 @@ void Host_impl::incoming_r2lc_response(const protocol::Body_R2LC_Response& cmd, 
 
     if (cmd.rejected)
     {
-        PFNET_LOG_WARN("Received R2LC_Response with rejection code %d; the connection will be closed.", cmd.rejected);
+        PFDEBUG_LOG_WARN("Received R2LC_Response with rejection code %d; the connection will be closed.", cmd.rejected);
         close_connection(info.id);
         return;
     }
@@ -560,7 +561,7 @@ void Host_impl::incoming_r2lc_response(const protocol::Body_R2LC_Response& cmd, 
     if (protocol::generate_session_keys_client(info.our_pubkey, info.our_privkey, info.their_pubkey,
         info.shared_incoming_key, info.shared_outgoing_key) != 0)
     {
-        PFNET_LOG_WARN("Received R2LC_Response with suspicious public key; the connection will be closed.");
+        PFDEBUG_LOG_WARN("Received R2LC_Response with suspicious public key; the connection will be closed.");
         close_connection(info.id);
         return;
     }
@@ -581,7 +582,7 @@ void Host_impl::incoming_l2rc_complete(const protocol::Body_L2RC_Complete&, Host
 {
     if (!info.auth_sent_pubkey || !info.auth_recv_pubkey)
     {
-        PFNET_LOG_WARN("Received L2RC_Complete with out-of-order authentication; the connection will be closed.");
+        PFDEBUG_LOG_WARN("Received L2RC_Complete with out-of-order authentication; the connection will be closed.");
         close_connection(info.id);
         return;
     }
@@ -676,7 +677,7 @@ int Host_impl::outgoing_payload_send(protocol::Body_Payload_Send& cmd, std::byte
 
     if (payload_info.deleter)
     {
-        PFNET_ASSERT(
+        PFDEBUG_ASSERT(
             payload_info.lifetime == PacketLifetime::AllocateCopy ||
             payload_info.lifetime == PacketLifetime::CallerRelievesOwnership);
 

@@ -2,6 +2,7 @@
 
 #include <PF_Net/Address.hpp>
 #include <PF_Net/Detail/Alloc.hpp>
+#include <PF_Net/Detail/Export.hpp>
 #include <PF_Net/Detail/Protocol.hpp>
 #include <stddef.h>
 

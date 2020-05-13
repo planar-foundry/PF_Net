@@ -1,8 +1,9 @@
 #include <PF_Net/Detail/Protocol.hpp>
 #include <PF_Net/NetworkByteStream.hpp>
-#include <PF_Net/Detail/Assert.hpp>
 #include <PF_Net/Detail/Instrumentation.hpp>
-#include <PF_Net/Detail/Log.hpp>
+
+#include <PF_Debug/Assert.hpp>
+#include <PF_Debug/Log.hpp>
 
 #include <string.h>
 
@@ -22,7 +23,7 @@ static_assert(EncryptionPadding == crypto_secretbox_MACBYTES,
 bool decrypt(std::byte* buff, int buff_len, int data_len, const std::byte* key, uint64_t nonce)
 {
     PFNET_PERF_FUNC_SCOPE();
-    PFNET_ASSERT(buff_len >= data_len + (int)EncryptionPadding);
+    PFDEBUG_ASSERT(buff_len >= data_len + (int)EncryptionPadding);
 
     unsigned char nonce_arr[crypto_secretbox_NONCEBYTES] = { 0 };
     memcpy(nonce_arr, &nonce, sizeof(nonce));
@@ -34,7 +35,7 @@ bool decrypt(std::byte* buff, int buff_len, int data_len, const std::byte* key, 
         nonce_arr,
         (unsigned char*)key))
     {
-        PFNET_LOG_WARN("Failed to decrypt data of length %d.\n", data_len);
+        PFDEBUG_LOG_WARN("Failed to decrypt data of length %d.\n", data_len);
         return false;
     }
 
@@ -44,7 +45,7 @@ bool decrypt(std::byte* buff, int buff_len, int data_len, const std::byte* key, 
 bool encrypt(std::byte* buff, int buff_len, int data_len, const std::byte* key, uint64_t nonce)
 {
     PFNET_PERF_FUNC_SCOPE();
-    PFNET_ASSERT(buff_len >= data_len + (int)EncryptionPadding);
+    PFDEBUG_ASSERT(buff_len >= data_len + (int)EncryptionPadding);
 
     unsigned char nonce_arr[crypto_secretbox_NONCEBYTES] = { 0 };
     memcpy(nonce_arr, &nonce, sizeof(nonce));
@@ -56,7 +57,7 @@ bool encrypt(std::byte* buff, int buff_len, int data_len, const std::byte* key, 
         nonce_arr,
         (unsigned char*)key))
     {
-        PFNET_LOG_WARN("Failed to encrypt data of length %d.\n", data_len);
+        PFDEBUG_LOG_WARN("Failed to encrypt data of length %d.\n", data_len);
         return false;
     }
 
@@ -71,7 +72,7 @@ uint8_t Body_Payload_Size::get_channel() const { return (size & ChannelMask) >> 
 
 void Header_Command::set_sentinel(uint8_t sentinel)
 {
-    PFNET_ASSERT_MSG(sentinel == SentinelValue,
+    PFDEBUG_ASSERT_MSG(sentinel == SentinelValue,
         "Protocol: Attempting to set the sentinel incorrectly to %u.", sentinel);
 
     data &= ~SentinelMask;
@@ -86,7 +87,7 @@ void Header_Command::set_command_type(CommandType command_type)
 
 void Header_Command::set_nonce_bytes(uint8_t bytes)
 {
-    PFNET_ASSERT_MSG(
+    PFDEBUG_ASSERT_MSG(
         bytes == 2 || bytes == 4 || bytes == 6 || bytes == 8,
         "Protocol: Nonce cannot be size %d.", bytes);
 
@@ -99,7 +100,7 @@ void Header_Command::set_nonce_bytes(uint8_t bytes)
 
 void Body_Payload_Size::set_size(uint16_t _size)
 {
-    PFNET_ASSERT_MSG(_size <= MaxPayloadSize,
+    PFDEBUG_ASSERT_MSG(_size <= MaxPayloadSize,
         "Protocol: Payload size was %u too big.", _size);
 
     size &= ~SizeMask;
@@ -108,7 +109,7 @@ void Body_Payload_Size::set_size(uint16_t _size)
 
 void Body_Payload_Size::set_channel(uint8_t channel)
 {
-    PFNET_ASSERT_MSG(channel <= MaxPayloadChannel,
+    PFDEBUG_ASSERT_MSG(channel <= MaxPayloadChannel,
         "Protocol: Channel %u was too high.", channel);
 
     size &= ~ChannelMask;
@@ -278,7 +279,7 @@ int write_to_buffer_impl(NetworkByteStream* stream, const T* body,
 
     if (stream->overflow())
     {
-        PFNET_ASSERT_FAIL_MSG("Protocol: Outgoing buffer overflow.");
+        PFDEBUG_ASSERT_FAIL_MSG("Protocol: Outgoing buffer overflow.");
         return -1;
     }
 
@@ -286,7 +287,7 @@ int write_to_buffer_impl(NetworkByteStream* stream, const T* body,
     {
         if (stream->len_remaining() < (int)EncryptionPadding)
         {
-            PFNET_ASSERT_FAIL_MSG("Protocol: Failed to write encrypted traffic, not enough buffer space.");
+            PFDEBUG_ASSERT_FAIL_MSG("Protocol: Failed to write encrypted traffic, not enough buffer space.");
             return -1;
         }
 
@@ -297,7 +298,7 @@ int write_to_buffer_impl(NetworkByteStream* stream, const T* body,
             key,
             nonce))
         {
-            PFNET_ASSERT_FAIL_MSG("Protocol: Failed to encrypt traffic.");
+            PFDEBUG_ASSERT_FAIL_MSG("Protocol: Failed to encrypt traffic.");
             return -1;
         }
 
@@ -371,7 +372,7 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
 
     if (header_command.get_sentinel() != Header_Command::SentinelValue)
     {
-        PFNET_LOG_WARN("Protocol: Sentinel %u did not match.", header_command.get_sentinel());
+        PFDEBUG_LOG_WARN("Protocol: Sentinel %u did not match.", header_command.get_sentinel());
         return -1;
     }
 
@@ -383,17 +384,17 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
 
     if (encryption)
     {
-        PFNET_ASSERT(key);
+        PFDEBUG_ASSERT(key);
 
         if (stream.len() < (int)MinPacketSizeEncrypted)
         {
-            PFNET_LOG_WARN("Protocol: Encrypted traffic without enough space for the smallest packet.");
+            PFDEBUG_LOG_WARN("Protocol: Encrypted traffic without enough space for the smallest packet.");
             return -1;
         }
 
         if (stream.len() > (int)MaxPacketSizeEncrypted)
         {
-            PFNET_LOG_WARN("Protocol: Encrypted traffic taking more space than the biggest packet.");
+            PFDEBUG_LOG_WARN("Protocol: Encrypted traffic taking more space than the biggest packet.");
             return -1;
         }
 
@@ -406,7 +407,7 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
             key, 
             header_encrypted.nonce))
         {
-            PFNET_LOG_WARN("Protocol: Encrypted traffic failed to decrypt.");
+            PFDEBUG_LOG_WARN("Protocol: Encrypted traffic failed to decrypt.");
             return -1;
         }
     }
@@ -414,19 +415,19 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
     {
         if (header_command.get_nonce_bytes() != Header_Command::NonceBytesSentinelValue)
         {
-            PFNET_LOG_WARN("Protocol: Nonce sentinel %d did not match.", header_command.get_nonce_bytes());
+            PFDEBUG_LOG_WARN("Protocol: Nonce sentinel %d did not match.", header_command.get_nonce_bytes());
             return -1;
         }
 
         if (stream.len() < (int)MinPacketSizeUnencrypted)
         {
-            PFNET_LOG_WARN("Protocol: Unencrypted traffic without enough space for the smallest packet.");
+            PFDEBUG_LOG_WARN("Protocol: Unencrypted traffic without enough space for the smallest packet.");
             return -1;
         }
 
         if (stream.len() > (int)MaxPacketSizeUnencrypted)
         {
-            PFNET_LOG_WARN("Protocol: Unencrypted traffic taking more space than the biggest packet.");
+            PFDEBUG_LOG_WARN("Protocol: Unencrypted traffic taking more space than the biggest packet.");
             return -1;
         }
     }
@@ -443,12 +444,12 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
         case CommandType::Payload_Send:                serialize(&stream, &out->send.body,      &out->send.payload); break;
         case CommandType::Payload_SendReliableOrdered: serialize(&stream, &out->send_rel.body,  &out->send_rel.payload); break;
         case CommandType::Payload_SendFragmented:      serialize(&stream, &out->send_frag.body, &out->send_frag.payload); break;
-        default: PFNET_LOG_WARN("Unrecognised command %u.", command_type); return -1;
+        default: PFDEBUG_LOG_WARN("Unrecognised command %u.", command_type); return -1;
     }
 
     if (stream.overflow())
     {
-        PFNET_LOG_WARN("Protocol: Incoming packet overflow.");
+        PFDEBUG_LOG_WARN("Protocol: Incoming packet overflow.");
         return -1;
     }
 
@@ -459,7 +460,7 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
 
     if (stream.len_remaining() != 0)
     {
-        PFNET_LOG_WARN("Protocol: Incoming packet underflow.");
+        PFDEBUG_LOG_WARN("Protocol: Incoming packet underflow.");
         return -1;
     }
 

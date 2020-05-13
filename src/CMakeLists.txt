@@ -5,69 +5,25 @@ set(sources
     PF_Net/NetworkByteStream.cpp PF_Net/NetworkByteStream.hpp
 
     PF_Net/Detail/Alloc.cpp PF_Net/Detail/Alloc.hpp
-    PF_Net/Detail/Assert.hpp
     PF_Net/Detail/Host_impl.cpp PF_Net/Detail/Host_impl.hpp
     PF_Net/Detail/HostFrameBuffer.cpp PF_Net/Detail/HostFrameBuffer.hpp
     PF_Net/Detail/Instrumentation.hpp
-    PF_Net/Detail/Log.cpp PF_Net/Detail/Log.hpp
     PF_Net/Detail/Protocol.cpp PF_Net/Detail/Protocol.hpp
     PF_Net/Detail/Socket.cpp PF_Net/Detail/Socket.hpp
     PF_Net/Detail/Util.cpp PF_Net/Detail/Util.hpp
 )
 
 add_library(PF_Net ${sources})
-
 target_include_directories(PF_Net PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(PF_Net PRIVATE ${sodium_LIBRARIES} PF_Endian)
+target_link_libraries(PF_Net PRIVATE PF_Debug PF_Endian)
+target_link_libraries(PF_Net PRIVATE ${sodium_LIBRARIES})
 target_include_directories(PF_Net PRIVATE ${sodium_INCLUDE_DIR})
 
-# (probably) temporary fix to output all artifacts to the same folder
-# TODO: Change this once we figure out how it works when another project adds this one.
-set_target_properties(PF_Net 
-    PROPERTIES 
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-
-add_custom_command(TARGET PF_Net POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:sodium>              
-    $<TARGET_FILE_DIR:PF_Net>)
+target_compile_options(PF_Net PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -pedantic>)
 
 if (MSVC)
     target_link_libraries(PF_Net PRIVATE wsock32 ws2_32)
-    target_compile_options(PF_Net PRIVATE /W4 /permissive-)
-    target_compile_definitions(PF_Net PRIVATE "_CRT_SECURE_NO_WARNINGS")
-
-    if (${BUILD_SHARED_LIBS})
-        target_compile_definitions(PF_Net PRIVATE   "PFNET_API=_declspec(dllexport)")
-        target_compile_definitions(PF_Net INTERFACE "PFNET_API=_declspec(dllimport)")
-    else()
-        target_compile_definitions(PF_Net PUBLIC "PFNET_API=")
-    endif()
-else()
-    target_compile_options(PF_Net PRIVATE -Wall -Wextra)
-
-    # This is disabled because our assert and log macros invoke sprintf with the
-    # format string in the macro. This is totally valid but the compiler whines.
-    target_compile_options(PF_Net PRIVATE -Wno-format-security)
-
-    target_compile_definitions(PF_Net PUBLIC "PFNET_API=")
-endif()
-
-if (${PFNET_ENABLE_ASSERTS})
-    target_compile_definitions(PF_Net PRIVATE "PFNET_ASSERTS_ENABLED")
-endif()
-
-if (${PFNET_ENABLE_LOG})
-    target_compile_definitions(PF_Net PRIVATE "PFNET_LOG_ENABLED")
-endif()
-
-if (${PFNET_ENABLE_INSTRUMENTATION})
-    target_compile_definitions(PF_Net PRIVATE "PFNET_INSTRUMENTATION_ENABLED")
-endif()
-
-if (${PFNET_ENABLE_DEBUG})
-    target_compile_definitions(PF_Net PUBLIC "PFNET_DEBUG_ENABLED")
 endif()

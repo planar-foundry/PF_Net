@@ -1,6 +1,7 @@
 #include <PF_Net/Address.hpp>
-#include <PF_Net/Detail/Assert.hpp>
 #include <PF_Net/Detail/Socket.hpp>
+
+#include <PF_Debug/Assert.hpp>
 
 #include <string.h>
 
@@ -103,7 +104,7 @@ uint16_t Address::get_port() const
 
 bool Address::write_string(char* buf, size_t buf_len) const
 {
-    PFNET_ASSERT(buf_len >= AddressStrBufLen);
+    PFDEBUG_ASSERT(buf_len >= AddressStrBufLen);
     return detail::address_to_string(*this, buf, buf_len);
 }
 
@@ -142,7 +143,7 @@ bool operator==(const Address& lhs, const Address& rhs)
         return false;
     }
 
-    PFNET_ASSERT_FAIL_MSG("Unhandled address equality case.");
+    PFDEBUG_ASSERT_FAIL_MSG("Unhandled address equality case.");
     return false;
 }
 

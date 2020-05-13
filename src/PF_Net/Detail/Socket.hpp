@@ -1,6 +1,8 @@
 #pragma once
 
 #include <PF_Net/Address.hpp>
+#include <PF_Net/Detail/Export.hpp>
+
 #include <stddef.h>
 
 namespace pf::net::detail

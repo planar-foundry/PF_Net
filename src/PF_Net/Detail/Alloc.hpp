@@ -1,6 +1,8 @@
 #pragma once
 
 #include <PF_Net/Net.hpp>
+#include <PF_Net/Detail/Export.hpp>
+
 #include <memory>
 #include <queue>
 #include <string>

@@ -17,50 +17,6 @@ void net_free()
     detail::socket_free();
 }
 
-#if defined(PFNET_ASSERTS_ENABLED)
-PFNET_API AssertFunc g_assert_handler = nullptr;
-#endif
-
-void set_assert_handler(AssertFunc handler)
-{
-#if defined(PFNET_ASSERTS_ENABLED)
-    g_assert_handler = handler;
-#else
-    (void)handler;
-#endif
-}
-
-AssertFunc get_assert_handler()
-{
-#if defined(PFNET_ASSERTS_ENABLED)
-    return g_assert_handler;
-#else
-    return nullptr;
-#endif
-}
-
-#if defined(PFNET_LOG_ENABLED)
-PFNET_API LogFunc g_log_handler = nullptr;
-#endif
-
-void set_log_handler(LogFunc handler)
-{
-#if defined(PFNET_LOG_ENABLED)
-    g_log_handler = handler;
-#else
-    (void)handler;
-#endif
-}
-
-LogFunc get_log_handler()
-{
-#if defined(PFNET_LOG_ENABLED)
-    return g_log_handler;
-#else
-    return nullptr;
-#endif
-}
-
 #if defined(PFNET_INSTRUMENTATION_ENABLED)
 PFNET_API InstrumentationFunc g_instrumentation_handler_push = nullptr;
 PFNET_API InstrumentationFunc g_instrumentation_handler_pop = nullptr;
