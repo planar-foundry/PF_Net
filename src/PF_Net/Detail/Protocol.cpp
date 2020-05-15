@@ -1,9 +1,9 @@
 #include <PF_Net/Detail/Protocol.hpp>
-#include <PF_Net/NetworkByteStream.hpp>
 #include <PF_Net/Detail/Instrumentation.hpp>
 
 #include <PF_Debug/Assert.hpp>
 #include <PF_Debug/Log.hpp>
+#include <PF_Streams/ByteStream.hpp>
 
 #include <string.h>
 
@@ -118,25 +118,25 @@ void Body_Payload_Size::set_channel(uint8_t channel)
 
 // HEADER
 
-void serialize(NetworkByteStream* stream, Header_Command* header)
+void serialize(streams::ByteStream* stream, Header_Command* header)
 {
     stream->do_u8(&header->data);
 }
 
-void serialize(NetworkByteStream* stream, Header_Encrypted* header, uint8_t bytes_required_for_nonce)
+void serialize(streams::ByteStream* stream, Header_Encrypted* header, uint8_t bytes_required_for_nonce)
 {
     stream->do_uvar(&header->nonce, bytes_required_for_nonce);
 }
 
 // BODY (SYSTEM, UNENCRYPTED)
 
-void serialize(NetworkByteStream* stream, Body_L2RC_Begin* body)
+void serialize(streams::ByteStream* stream, Body_L2RC_Begin* body)
 {
     stream->do_bytes(sizeof(body->version), (std::byte*)body->version);
     stream->do_bytes(sizeof(body->pubkey), body->pubkey);
 }
 
-void serialize(NetworkByteStream* stream, Body_R2LC_Response* body)
+void serialize(streams::ByteStream* stream, Body_R2LC_Response* body)
 {
     stream->do_u8(&body->rejected);
     stream->do_bytes(sizeof(body->pubkey), body->pubkey);
@@ -144,45 +144,45 @@ void serialize(NetworkByteStream* stream, Body_R2LC_Response* body)
 
 // BODY (SYSTEM, ENCRYPTED)
 
-void serialize(NetworkByteStream* stream, Body_L2RC_Complete* body)
+void serialize(streams::ByteStream* stream, Body_L2RC_Complete* body)
 {
     (void)stream; (void)body;
 }
 
-void serialize(NetworkByteStream* stream, Body_System_Disconnect* body)
+void serialize(streams::ByteStream* stream, Body_System_Disconnect* body)
 {
     (void)stream; (void)body;
 }
 
-void serialize(NetworkByteStream* stream, Body_System_Ping* body)
+void serialize(streams::ByteStream* stream, Body_System_Ping* body)
 {
     (void)stream; (void)body;
 }
 
 // BODY (PAYLOAD, ENCRYPTED)
 
-void serialize(NetworkByteStream* stream, Body_Payload_Size* header)
+void serialize(streams::ByteStream* stream, Body_Payload_Size* header)
 {
     stream->do_u16(&header->size);
 }
 
-void serialize(NetworkByteStream* stream, Body_Payload_Acks32* header)
+void serialize(streams::ByteStream* stream, Body_Payload_Acks32* header)
 {
     stream->do_u16(&header->sequence);
     stream->do_u16(&header->ack);
     stream->do_u32(&header->ack32);
 }
 
-void serialize(NetworkByteStream* stream, Body_Payload_FragmentInfo* header)
+void serialize(streams::ByteStream* stream, Body_Payload_FragmentInfo* header)
 {
     stream->do_u16(&header->fragment_id);
     stream->do_u32(&header->count);
     stream->do_u32(&header->index);
 }
 
-void serialize_payload(NetworkByteStream* stream, std::byte** payload, uint16_t len)
+void serialize_payload(streams::ByteStream* stream, std::byte** payload, uint16_t len)
 {
-    if (stream->mode() == NetworkByteStream::Mode::Read)
+    if (stream->mode() == streams::ByteStream::Mode::Read)
     {
         // This is an optimization. There's no point copying it out of the buffer - let's leave that up to the user.
         // Instead, we grab a raw pointer from inside the stream and return it.
@@ -195,20 +195,20 @@ void serialize_payload(NetworkByteStream* stream, std::byte** payload, uint16_t 
     }
 }
 
-void serialize(NetworkByteStream* stream, Body_Payload_Send* body, std::byte** payload)
+void serialize(streams::ByteStream* stream, Body_Payload_Send* body, std::byte** payload)
 {
     serialize(stream, &body->ps);
     serialize_payload(stream, payload, body->ps.get_size());
 }
 
-void serialize(NetworkByteStream* stream, Body_Payload_SendReliableOrdered* body, std::byte** payload)
+void serialize(streams::ByteStream* stream, Body_Payload_SendReliableOrdered* body, std::byte** payload)
 {
     serialize(stream, &body->a32);
     serialize(stream, &body->ps);
     serialize_payload(stream, payload, body->ps.get_size());
 }
 
-void serialize(NetworkByteStream* stream, Body_Payload_SendFragmented* body, std::byte** payload)
+void serialize(streams::ByteStream* stream, Body_Payload_SendFragmented* body, std::byte** payload)
 {
     serialize(stream, &body->a32);
     serialize(stream, &body->frag);
@@ -220,41 +220,41 @@ uint8_t get_nonce_bytes(uint64_t nonce)
 {
     uint8_t bytes = 2;
     while (nonce >>= 16)
-    { 
+    {
         bytes += 2;
     }
     return bytes;
 }
 
 template <typename T>
-void serialize_body(NetworkByteStream* stream, const T* body, const std::byte* payload);
+void serialize_body(streams::ByteStream* stream, const T* body, const std::byte* payload);
 
 template <>
-void serialize_body(NetworkByteStream* stream, const Body_Payload_Send* body, const std::byte* payload)
+void serialize_body(streams::ByteStream* stream, const Body_Payload_Send* body, const std::byte* payload)
 {
     serialize(stream, const_cast<Body_Payload_Send*>(body), const_cast<std::byte**>(&payload));
 }
 
 template <>
-void serialize_body(NetworkByteStream* stream, const Body_Payload_SendReliableOrdered* body, const std::byte* payload)
+void serialize_body(streams::ByteStream* stream, const Body_Payload_SendReliableOrdered* body, const std::byte* payload)
 {
     serialize(stream, const_cast<Body_Payload_SendReliableOrdered*>(body), const_cast<std::byte**>(&payload));
 }
 
 template <>
-void serialize_body(NetworkByteStream* stream, const Body_Payload_SendFragmented* body, const std::byte* payload)
+void serialize_body(streams::ByteStream* stream, const Body_Payload_SendFragmented* body, const std::byte* payload)
 {
     serialize(stream, const_cast<Body_Payload_SendFragmented*>(body), const_cast<std::byte**>(&payload));
 }
 
 template <typename T>
-void serialize_body(NetworkByteStream* stream, const T* body, const std::byte*)
+void serialize_body(streams::ByteStream* stream, const T* body, const std::byte*)
 {
     serialize(stream, const_cast<T*>(body));
 }
 
 template <typename T>
-int write_to_buffer_impl(NetworkByteStream* stream, const T* body,
+int write_to_buffer_impl(streams::ByteStream* stream, const T* body,
     const std::byte* key = nullptr, uint64_t nonce = 0, const std::byte* payload = nullptr)
 {
     PFNET_PERF_FUNC_SCOPE();
@@ -310,49 +310,49 @@ int write_to_buffer_impl(NetworkByteStream* stream, const T* body,
 
 int write_to_buffer(std::byte* buff, int buff_len, const Body_L2RC_Begin* body)
 {
-    NetworkByteStream stream(NetworkByteStream::Mode::Write, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Write, buff, buff_len);
     return write_to_buffer_impl(&stream, body);
 }
 
 int write_to_buffer(std::byte* buff, int buff_len, const Body_R2LC_Response* body)
 {
-    NetworkByteStream stream(NetworkByteStream::Mode::Write, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Write, buff, buff_len);
     return write_to_buffer_impl(&stream, body);
 }
 
 int write_to_buffer(std::byte* buff, int buff_len, const std::byte* key, uint64_t nonce, const Body_L2RC_Complete* body)
 {
-    NetworkByteStream stream(NetworkByteStream::Mode::Write, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Write, buff, buff_len);
     return write_to_buffer_impl(&stream, body, key, nonce);
 }
 
 int write_to_buffer(std::byte* buff, int buff_len, const std::byte* key, uint64_t nonce, const Body_System_Disconnect* body)
 {
-    NetworkByteStream stream(NetworkByteStream::Mode::Write, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Write, buff, buff_len);
     return write_to_buffer_impl(&stream, body, key, nonce);
 }
 
 int write_to_buffer(std::byte* buff, int buff_len, const std::byte* key, uint64_t nonce, const Body_System_Ping* body)
 {
-    NetworkByteStream stream(NetworkByteStream::Mode::Write, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Write, buff, buff_len);
     return write_to_buffer_impl(&stream, body, key, nonce);
 }
 
 int write_to_buffer(std::byte* buff, int buff_len, const std::byte* key, uint64_t nonce, const Body_Payload_Send* body, const std::byte* payload)
 {
-    NetworkByteStream stream(NetworkByteStream::Mode::Write, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Write, buff, buff_len);
     return write_to_buffer_impl(&stream, body, key, nonce, payload);
 }
 
 int write_to_buffer(std::byte* buff, int buff_len, const std::byte* key, uint64_t nonce, const Body_Payload_SendReliableOrdered* body, const std::byte* payload)
 {
-    NetworkByteStream stream(NetworkByteStream::Mode::Write, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Write, buff, buff_len);
     return write_to_buffer_impl(&stream, body, key, nonce, payload);
 }
 
 int write_to_buffer(std::byte* buff, int buff_len, const std::byte* key, uint64_t nonce, const Body_Payload_SendFragmented* body, const std::byte* payload)
 {
-    NetworkByteStream stream(NetworkByteStream::Mode::Write, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Write, buff, buff_len);
     return write_to_buffer_impl(&stream, body, key, nonce, payload);
 }
 
@@ -365,7 +365,7 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
 {
     PFNET_PERF_FUNC_SCOPE();
 
-    NetworkByteStream stream(NetworkByteStream::Mode::Read, buff, buff_len);
+    streams::ByteStream stream(streams::ByteStream::Mode::Read, buff, buff_len);
 
     Header_Command header_command;
     serialize(&stream, &header_command);
@@ -380,7 +380,7 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
 
     bool encryption =
         command_type != CommandType::L2RC_Begin &&
-        command_type != CommandType::R2LC_Response; 
+        command_type != CommandType::R2LC_Response;
 
     if (encryption)
     {
@@ -401,10 +401,10 @@ int read_from_buffer(std::byte* buff, int buff_len, const std::byte* key, Comman
         Header_Encrypted header_encrypted;
         serialize(&stream, &header_encrypted, header_command.get_nonce_bytes());
 
-        if (!decrypt(buff + stream.head(), 
-            stream.len_remaining(), 
+        if (!decrypt(buff + stream.head(),
+            stream.len_remaining(),
             stream.len_remaining() - EncryptionPadding,
-            key, 
+            key,
             header_encrypted.nonce))
         {
             PFDEBUG_LOG_WARN("Protocol: Encrypted traffic failed to decrypt.");
@@ -477,9 +477,9 @@ int generate_session_keys_client(const std::byte* our_public_key, const std::byt
 {
     return crypto_kx_client_session_keys(
         (unsigned char*)shared_incoming_key,
-        (unsigned char*)shared_outgoing_key, 
+        (unsigned char*)shared_outgoing_key,
         (unsigned char*)our_public_key,
-        (unsigned char*)our_private_key, 
+        (unsigned char*)our_private_key,
         (unsigned char*)their_public_key);
 }
 
@@ -488,9 +488,9 @@ int generate_session_keys_server(const std::byte* our_public_key, const std::byt
 {
     return crypto_kx_server_session_keys(
         (unsigned char*)shared_incoming_key,
-        (unsigned char*)shared_outgoing_key, 
+        (unsigned char*)shared_outgoing_key,
         (unsigned char*)our_public_key,
-        (unsigned char*)our_private_key, 
+        (unsigned char*)our_private_key,
         (unsigned char*)their_public_key);
 }
 

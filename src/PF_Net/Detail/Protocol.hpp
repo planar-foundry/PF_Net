@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <type_traits>
 
-namespace pf::net { class NetworkByteStream; }
+namespace pf::streams { class ByteStream; }
 
 namespace pf::net::detail::protocol
 {
